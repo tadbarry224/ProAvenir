@@ -32,10 +32,12 @@ import {
 } from "lucide-react";
 import {
   OFFER_CITIES,
+  OFFER_DISPLAY_STATUS_LABELS,
   OFFER_DOMAINS,
-  OFFER_STATUS_LABELS,
   OFFER_TYPE_LABELS,
   OFFER_TYPES,
+  type Company,
+  type Job,
   type Offer,
   type OfferField,
   type OfferFormValues,
@@ -44,130 +46,16 @@ import {
 } from "./types/offer";
 import {
   todayIsoDate,
-  toOfferFormValues,
   validateOffer,
   type OfferErrors,
   type ValidationMode,
 } from "./features/offers/validateOffer";
+import { getDisplayStatus, isPubliclyVisible } from "./features/offers/offerRules";
+import { formatShortDate, toJobView } from "./features/offers/toJobView";
+import { useOffers } from "./features/offers/useOffers";
+import { DEMO_COMPANY_ID, findCompany } from "./data/mockCompanies";
 
 type Page = "home" | "jobs" | "job" | "login" | "register" | "candidate" | "company" | "admin";
-
-type Job = {
-  id: number;
-  title: string;
-  company: string;
-  initials: string;
-  city: string;
-  domain: string;
-  type: "Stage" | "Emploi";
-  contract: string;
-  posted: string;
-  deadline: string;
-  description: string;
-  skills: string[];
-  color: string;
-  featured?: boolean;
-};
-
-const jobs: Job[] = [
-  {
-    id: 1,
-    title: "Assistant·e marketing digital",
-    company: "Kamsar Solutions",
-    initials: "KS",
-    city: "Conakry",
-    domain: "Marketing",
-    type: "Stage",
-    contract: "Stage · 6 mois",
-    posted: "Publiée le 8 déc. 2026",
-    deadline: "28 déc. 2026",
-    description:
-      "Rejoignez une équipe dynamique pour contribuer à la stratégie digitale, produire des contenus adaptés aux audiences locales et suivre les performances de nos campagnes. Vous travaillerez aux côtés de l’équipe commerciale sur des projets concrets.",
-    skills: ["Réseaux sociaux", "Canva", "Communication", "Analyse"],
-    color: "blue",
-    featured: true,
-  },
-  {
-    id: 2,
-    title: "Développeur·se web junior",
-    company: "Nimba Digital",
-    initials: "ND",
-    city: "Conakry",
-    domain: "Informatique",
-    type: "Emploi",
-    contract: "CDI · Temps plein",
-    posted: "Publiée le 7 déc. 2026",
-    deadline: "04 jan. 2027",
-    description:
-      "Vous participerez au développement et à la maintenance d’applications web utiles aux entreprises guinéennes. Vous serez accompagné·e par un développeur senior et contribuerez à toutes les étapes du produit.",
-    skills: ["React", "TypeScript", "Git", "Esprit d’équipe"],
-    color: "green",
-  },
-  {
-    id: 3,
-    title: "Chargé·e de clientèle",
-    company: "Conakry Services",
-    initials: "CS",
-    city: "Conakry",
-    domain: "Commerce",
-    type: "Emploi",
-    contract: "CDD · 12 mois",
-    posted: "Publiée le 1 déc. 2026",
-    deadline: "10 jan. 2027",
-    description:
-      "Vous accueillez et accompagnez les clients, identifiez leurs besoins et assurez un suivi rigoureux des demandes. Une excellente expression en français et le sens du service sont essentiels.",
-    skills: ["Relation client", "Organisation", "Français", "Pack Office"],
-    color: "orange",
-  },
-  {
-    id: 4,
-    title: "Stagiaire comptable",
-    company: "Fouta Conseil",
-    initials: "FC",
-    city: "Labé",
-    domain: "Finance",
-    type: "Stage",
-    contract: "Stage · 3 mois",
-    posted: "Publiée le 28 nov. 2026",
-    deadline: "15 jan. 2027",
-    description:
-      "Sous la supervision du responsable administratif, vous contribuerez à la saisie des pièces comptables, au classement des dossiers et à la préparation des états de rapprochement.",
-    skills: ["Comptabilité", "Excel", "Rigueur", "Confidentialité"],
-    color: "violet",
-  },
-  {
-    id: 5,
-    title: "Assistant·e ressources humaines",
-    company: "Sogué Industrie",
-    initials: "SI",
-    city: "Kindia",
-    domain: "Ressources humaines",
-    type: "Emploi",
-    contract: "CDD · 6 mois",
-    posted: "Publiée le 25 nov. 2026",
-    deadline: "18 jan. 2027",
-    description:
-      "Vous appuierez l’équipe RH dans la gestion administrative des collaborateurs, l’accueil des nouvelles recrues et le suivi des dossiers de formation.",
-    skills: ["Administration", "Excel", "Écoute", "Discrétion"],
-    color: "teal",
-  },
-  {
-    id: 6,
-    title: "Agent·e logistique",
-    company: "Boké Distribution",
-    initials: "BD",
-    city: "Boké",
-    domain: "Logistique",
-    type: "Emploi",
-    contract: "CDI · Temps plein",
-    posted: "Publiée le 20 nov. 2026",
-    deadline: "20 jan. 2027",
-    description:
-      "Vous assurerez la réception, le contrôle et le suivi des marchandises, ainsi que la mise à jour des outils de gestion de stock.",
-    skills: ["Gestion de stock", "Ponctualité", "Excel", "Travail en équipe"],
-    color: "navy",
-  },
-];
 
 const statusStyle: Record<string, string> = {
   Envoyée: "bg-blue-50 text-blue-700",
@@ -356,11 +244,13 @@ function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
 }
 
 function Home({
+  jobs,
   go,
   selectJob,
   setSearch,
   setCity,
 }: {
+  jobs: Job[]; // offres publiques uniquement (publiées et non expirées)
   go: (page: Page) => void;
   selectJob: (job: Job) => void;
   setSearch: (value: string) => void;
@@ -595,12 +485,14 @@ function Home({
 }
 
 function JobsPage({
+  jobs,
   search,
   setSearch,
   city,
   setCity,
   selectJob,
 }: {
+  jobs: Job[]; // offres publiques uniquement (publiées et non expirées)
   search: string;
   setSearch: (value: string) => void;
   city: string;
@@ -624,7 +516,7 @@ function JobsPage({
           (!type || job.type === type)
         );
       }),
-    [search, city, domain, type],
+    [jobs, search, city, domain, type],
   );
   const filters = (
     <>
@@ -632,7 +524,7 @@ function JobsPage({
         <label>Ville</label>
         <select value={city} onChange={(e) => setCity(e.target.value)}>
           <option value="">Toutes les villes</option>
-          {["Conakry", "Kindia", "Labé", "Boké"].map((x) => (
+          {OFFER_CITIES.map((x) => (
             <option key={x}>{x}</option>
           ))}
         </select>
@@ -641,14 +533,7 @@ function JobsPage({
         <label>Domaine</label>
         <select value={domain} onChange={(e) => setDomain(e.target.value)}>
           <option value="">Tous les domaines</option>
-          {[
-            "Informatique",
-            "Marketing",
-            "Commerce",
-            "Finance",
-            "Ressources humaines",
-            "Logistique",
-          ].map((x) => (
+          {OFFER_DOMAINS.map((x) => (
             <option key={x}>{x}</option>
           ))}
         </select>
@@ -733,7 +618,8 @@ function JobsPage({
                 {filtered.length !== 1 ? "s" : ""}
               </h2>
               <p className="mt-1 text-xs text-slate-400">
-                Données fictives — situation simulée au 16 décembre 2026
+                {/* Date réelle utilisée pour masquer les offres expirées (voir offerRules). */}
+                Données fictives — offres ouvertes au {formatShortDate(todayIsoDate())}
               </p>
             </div>
             <button onClick={() => setMobileFilters(true)} className="btn-secondary px-3 lg:hidden">
@@ -1276,9 +1162,11 @@ function DashboardTop({
 }
 
 function CandidateDashboard({
+  jobs,
   go,
   applicationStatus,
 }: {
+  jobs: Job[]; // offres publiques, pour les « Offres recommandées »
   go: (p: Page) => void;
   applicationStatus: string;
 }) {
@@ -1578,29 +1466,47 @@ const initialRecruitApplications: RecruitApplication[] = [
   },
 ];
 
+/** Couleur de la pastille de statut dans « Mes offres » (classes déjà utilisées dans le design). */
+const offerStatusStyle: Record<ReturnType<typeof getDisplayStatus>, string> = {
+  PUBLISHED: "bg-emerald-50 text-emerald-700",
+  DRAFT: "bg-blue-50 text-blue-700",
+  CLOSED: "bg-slate-100 text-slate-600",
+  EXPIRED: "bg-amber-50 text-amber-700",
+};
+
 function CompanyDashboard({
   go,
+  company,
+  offers,
+  today,
   applications,
   updateStatus,
+  onCreateOffer,
+  onChangeOfferStatus,
 }: {
   go: (p: Page) => void;
+  company: Company;
+  offers: Offer[]; // uniquement les offres de cette entreprise
+  today: string;
   applications: RecruitApplication[];
   updateStatus: (name: string, status: string) => void;
+  onCreateOffer: (input: OfferInput, status: OfferStatus) => void;
+  /** Renvoie null si le changement a réussi, sinon le message d'erreur. */
+  onChangeOfferStatus: (offerId: number) => string | null;
 }) {
   const [active, setActive] = useState("Aperçu");
   const [publish, setPublish] = useState(false);
   const [published, setPublished] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
-  const [closedOffers, setClosedOffers] = useState<number[]>([]);
-  const [createdOffers, setCreatedOffers] = useState<Offer[]>([]);
-  // Message affiché quand une offre ne peut pas être (re)mise en ligne car incomplète.
+  // Message affiché quand une offre ne peut pas être (re)mise en ligne car incomplète ou expirée.
   const [statusError, setStatusError] = useState("");
   const showApplications = active === "Candidatures";
+  // « Offres actives » = offres réellement visibles par le public.
+  const activeOffersCount = offers.filter((offer) => isPubliclyVisible(offer, today)).length;
 
-  /** Ajoute une offre (complète) créée depuis la modale, avec le statut demandé. */
+  /** Enregistre l'offre complète créée depuis la modale, avec le statut demandé. */
   const addOffer = (input: OfferInput, status: OfferStatus) => {
-    const offer: Offer = { ...input, id: Date.now(), status, createdAt: new Date().toISOString() };
-    setCreatedOffers((items) => [offer, ...items]);
+    onCreateOffer(input, status);
     setPublish(false);
     setPublished(status === "PUBLISHED");
     setDraftSaved(status === "DRAFT");
@@ -1608,37 +1514,23 @@ function CompanyDashboard({
     setActive("Mes offres");
   };
 
-  /**
-   * Bouton « Publier / Clôturer / Réouvrir ».
-   * Règle : une offre ne peut passer à PUBLISHED que si elle respecte
-   * les règles de publication (un brouillon incomplet reste un brouillon).
-   */
+  /** Bouton « Publier / Clôturer / Réouvrir » : la règle est appliquée par useOffers. */
   const changeOfferStatus = (offer: Offer) => {
-    const nextStatus: OfferStatus = offer.status === "PUBLISHED" ? "CLOSED" : "PUBLISHED";
-    if (nextStatus === "PUBLISHED") {
-      const result = validateOffer(toOfferFormValues(offer), "publish");
-      if (!result.ok) {
-        setStatusError(
-          `« ${offer.title} » ne peut pas être publiée : ${Object.values(result.errors).join(" ")}`,
-        );
-        setPublished(false);
-        setDraftSaved(false);
-        return;
-      }
+    const error = onChangeOfferStatus(offer.id);
+    setStatusError(error ?? "");
+    if (error) {
+      setPublished(false);
+      setDraftSaved(false);
     }
-    setStatusError("");
-    setCreatedOffers((items) =>
-      items.map((item) => (item.id === offer.id ? { ...item, status: nextStatus } : item)),
-    );
   };
   return (
     <DashboardLayout area="company" go={go} active={active} setActive={setActive}>
       <DashboardTop
         title={active === "Aperçu" ? "Espace entreprise" : active}
-        subtitle="Kamsar Solutions · Compte vérifié"
+        subtitle={`${company.name} · Compte vérifié`}
         action="Publier une offre"
         onAction={() => setPublish(true)}
-        avatar="KS"
+        avatar={company.initials}
       />
       <div className="dashboard-content">
         {published && (
@@ -1667,11 +1559,7 @@ function CompanyDashboard({
             <div className="stats-grid">
               <StatCard
                 icon={BriefcaseBusiness}
-                value={String(
-                  3 -
-                    closedOffers.length +
-                    createdOffers.filter((offer) => offer.status === "PUBLISHED").length,
-                )}
+                value={String(activeOffersCount)}
                 label="Offres actives"
                 tone="blue"
               />
@@ -1704,7 +1592,7 @@ function CompanyDashboard({
                 <span className="flex items-center gap-2 text-xs font-bold text-emerald-700">
                   <ShieldCheck size={17} /> ENTREPRISE VÉRIFIÉE
                 </span>
-                <h3 className="mt-4 font-bold text-[#0c2340]">Kamsar Solutions</h3>
+                <h3 className="mt-4 font-bold text-[#0c2340]">{company.name}</h3>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   Services professionnels · Conakry
                 </p>
@@ -1738,73 +1626,43 @@ function CompanyDashboard({
               onAction={() => setPublish(true)}
             />
             <div className="divide-y divide-slate-100">
-              {createdOffers.map((offer) => (
-                <div key={offer.id} className="flex flex-wrap items-center gap-4 p-5">
-                  <span className="job-logo logo-blue size-12 text-sm">KS</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[#0c2340]">{offer.title}</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Créée le{" "}
-                      {new Date(offer.createdAt).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}{" "}
-                      · Donnée fictive
-                    </p>
+              {offers.map((offer) => {
+                const view = toJobView(offer, company);
+                const displayStatus = getDisplayStatus(offer, today);
+                // TEMPORAIRE : les candidatures fictives sont reliées à l'offre par son titre.
+                // Elles le seront par un identifiant lors de l'étape « candidatures ».
+                const applicationsCount = applications.filter(
+                  (item) => item.role === offer.title,
+                ).length;
+                return (
+                  <div key={offer.id} className="flex flex-wrap items-center gap-4 p-5">
+                    <JobLogo job={view} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-[#0c2340]">{offer.title}</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {offer.publishedAt
+                          ? `${applicationsCount} candidature(s) · ${view.posted}`
+                          : `Créée le ${formatShortDate(offer.createdAt)}`}
+                      </p>
+                    </div>
+                    <span className={`status ${offerStatusStyle[displayStatus]}`}>
+                      {OFFER_DISPLAY_STATUS_LABELS[displayStatus]}
+                    </span>
+                    <button onClick={() => changeOfferStatus(offer)} className="offer-toggle">
+                      {offer.status === "DRAFT"
+                        ? "Publier"
+                        : offer.status === "PUBLISHED"
+                          ? "Clôturer"
+                          : "Réouvrir"}
+                    </button>
                   </div>
-                  <span
-                    className={`status ${
-                      offer.status === "PUBLISHED"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : offer.status === "DRAFT"
-                          ? "bg-blue-50 text-blue-700"
-                          : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {OFFER_STATUS_LABELS[offer.status]}
-                  </span>
-                  <button onClick={() => changeOfferStatus(offer)} className="offer-toggle">
-                    {offer.status === "DRAFT"
-                      ? "Publier"
-                      : offer.status === "PUBLISHED"
-                        ? "Clôturer"
-                        : "Réouvrir"}
-                  </button>
-                </div>
-              ))}
-              {jobs.slice(0, 3).map((job, i) => (
-                <div key={job.id} className="flex flex-wrap items-center gap-4 p-5">
-                  <JobLogo job={job} />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[#0c2340]">{job.title}</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {i * 4 + 5} candidature(s) · {job.posted}
-                    </p>
-                  </div>
-                  <span
-                    className={`status ${
-                      closedOffers.includes(job.id)
-                        ? "bg-slate-100 text-slate-600"
-                        : "bg-emerald-50 text-emerald-700"
-                    }`}
-                  >
-                    {closedOffers.includes(job.id) ? "Clôturée" : "Active"}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setClosedOffers((items) =>
-                        items.includes(job.id)
-                          ? items.filter((id) => id !== job.id)
-                          : [...items, job.id],
-                      )
-                    }
-                    className="offer-toggle"
-                  >
-                    {closedOffers.includes(job.id) ? "Réouvrir" : "Clôturer"}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
+              {!offers.length && (
+                <p className="p-5 text-sm text-slate-400">
+                  Vous n’avez encore publié aucune offre.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -2347,9 +2205,22 @@ function AdminOffers({
   );
 }
 
+// Entreprise de démonstration (temporaire, en attendant l'authentification).
+const demoCompany = findCompany(DEMO_COMPANY_ID);
+
 export default function App() {
   const [page, setPage] = useState<Page>("home");
-  const [selectedJob, setSelectedJob] = useState<Job>(jobs[0]);
+  // Source unique des offres : partagée entre l'espace entreprise et les pages publiques.
+  const { publicOffers, today, getCompanyOffers, createOffer, changeOfferStatus } = useOffers();
+  // Offres publiques converties au format d'affichage des composants existants.
+  const publicJobs = useMemo(
+    () => publicOffers.map((offer) => toJobView(offer, findCompany(offer.companyId))),
+    [publicOffers],
+  );
+  // On mémorise l'identifiant de l'offre consultée, pas une copie : on lit
+  // toujours sa version à jour (et on sait si elle n'est plus publique).
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+  const selectedJob = publicJobs.find((job) => job.id === selectedJobId);
   const [search, setSearch] = useState("");
   const [searchCity, setSearchCity] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -2367,9 +2238,19 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const selectJob = (job: Job) => {
-    setSelectedJob(job);
+    setSelectedJobId(job.id);
     go("job");
   };
+  const jobsPage = (
+    <JobsPage
+      jobs={publicJobs}
+      search={search}
+      setSearch={setSearch}
+      city={searchCity}
+      setCity={setSearchCity}
+      selectJob={selectJob}
+    />
+  );
   const isDashboard = ["candidate", "company", "admin"].includes(page);
   const publicHeader = !["login", "register"].includes(page);
   return (
@@ -2383,42 +2264,52 @@ export default function App() {
         </div>
       )}
       {page === "home" && (
-        <Home go={go} selectJob={selectJob} setSearch={setSearch} setCity={setSearchCity} />
-      )}
-      {page === "jobs" && (
-        <JobsPage
-          search={search}
-          setSearch={setSearch}
-          city={searchCity}
-          setCity={setSearchCity}
-          selectJob={selectJob}
-        />
-      )}
-      {page === "job" && (
-        <JobDetails
-          job={selectedJob}
+        <Home
+          jobs={publicJobs}
           go={go}
-          applied={appliedIds.includes(selectedJob.id)}
-          onApply={() =>
-            setAppliedIds((ids) => (ids.includes(selectedJob.id) ? ids : [...ids, selectedJob.id]))
-          }
+          selectJob={selectJob}
+          setSearch={setSearch}
+          setCity={setSearchCity}
         />
       )}
+      {page === "jobs" && jobsPage}
+      {page === "job" &&
+        // Si l'offre n'est plus publique (clôturée, expirée…), on revient à la liste.
+        (selectedJob ? (
+          <JobDetails
+            job={selectedJob}
+            go={go}
+            applied={appliedIds.includes(selectedJob.id)}
+            onApply={() =>
+              setAppliedIds((ids) =>
+                ids.includes(selectedJob.id) ? ids : [...ids, selectedJob.id],
+              )
+            }
+          />
+        ) : (
+          jobsPage
+        ))}
       {page === "login" && <AuthPage mode="login" go={go} />}
       {page === "register" && <AuthPage mode="register" go={go} />}
       {page === "candidate" && (
         <CandidateDashboard
+          jobs={publicJobs}
           go={go}
           applicationStatus={
             recruitApplications.find((item) => item.name === "Mariama Diallo")?.status ?? "Envoyée"
           }
         />
       )}
-      {page === "company" && (
+      {page === "company" && demoCompany && (
         <CompanyDashboard
           go={go}
+          company={demoCompany}
+          offers={getCompanyOffers(demoCompany.id)}
+          today={today}
           applications={recruitApplications}
           updateStatus={updateApplicationStatus}
+          onCreateOffer={(input, status) => createOffer(demoCompany.id, input, status)}
+          onChangeOfferStatus={changeOfferStatus}
         />
       )}
       {page === "admin" && <AdminDashboard go={go} />}

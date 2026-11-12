@@ -1,0 +1,10 @@
+{
+  "description": "Une plateforme guinéenne qui aide les étudiants et chercheurs d’emploi à trouver des stages et emplois, et les entreprises à publier des offres et gérer les candidatures.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

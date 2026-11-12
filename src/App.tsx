@@ -30,6 +30,25 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import {
+  OFFER_CITIES,
+  OFFER_DOMAINS,
+  OFFER_STATUS_LABELS,
+  OFFER_TYPE_LABELS,
+  OFFER_TYPES,
+  type Offer,
+  type OfferField,
+  type OfferFormValues,
+  type OfferInput,
+  type OfferStatus,
+} from "./types/offer";
+import {
+  todayIsoDate,
+  toOfferFormValues,
+  validateOffer,
+  type OfferErrors,
+  type ValidationMode,
+} from "./features/offers/validateOffer";
 
 type Page = "home" | "jobs" | "job" | "login" | "register" | "candidate" | "company" | "admin";
 
@@ -1535,12 +1554,6 @@ type RecruitApplication = {
   initials: string;
 };
 
-type CreatedOffer = {
-  id: number;
-  title: string;
-  status: "Active" | "Brouillon" | "Clôturée";
-};
-
 const initialRecruitApplications: RecruitApplication[] = [
   {
     name: "Mariama Diallo",
@@ -1579,8 +1592,45 @@ function CompanyDashboard({
   const [published, setPublished] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [closedOffers, setClosedOffers] = useState<number[]>([]);
-  const [createdOffers, setCreatedOffers] = useState<CreatedOffer[]>([]);
+  const [createdOffers, setCreatedOffers] = useState<Offer[]>([]);
+  // Message affiché quand une offre ne peut pas être (re)mise en ligne car incomplète.
+  const [statusError, setStatusError] = useState("");
   const showApplications = active === "Candidatures";
+
+  /** Ajoute une offre (complète) créée depuis la modale, avec le statut demandé. */
+  const addOffer = (input: OfferInput, status: OfferStatus) => {
+    const offer: Offer = { ...input, id: Date.now(), status, createdAt: new Date().toISOString() };
+    setCreatedOffers((items) => [offer, ...items]);
+    setPublish(false);
+    setPublished(status === "PUBLISHED");
+    setDraftSaved(status === "DRAFT");
+    setStatusError("");
+    setActive("Mes offres");
+  };
+
+  /**
+   * Bouton « Publier / Clôturer / Réouvrir ».
+   * Règle : une offre ne peut passer à PUBLISHED que si elle respecte
+   * les règles de publication (un brouillon incomplet reste un brouillon).
+   */
+  const changeOfferStatus = (offer: Offer) => {
+    const nextStatus: OfferStatus = offer.status === "PUBLISHED" ? "CLOSED" : "PUBLISHED";
+    if (nextStatus === "PUBLISHED") {
+      const result = validateOffer(toOfferFormValues(offer), "publish");
+      if (!result.ok) {
+        setStatusError(
+          `« ${offer.title} » ne peut pas être publiée : ${Object.values(result.errors).join(" ")}`,
+        );
+        setPublished(false);
+        setDraftSaved(false);
+        return;
+      }
+    }
+    setStatusError("");
+    setCreatedOffers((items) =>
+      items.map((item) => (item.id === offer.id ? { ...item, status: nextStatus } : item)),
+    );
+  };
   return (
     <DashboardLayout area="company" go={go} active={active} setActive={setActive}>
       <DashboardTop
@@ -1603,6 +1653,15 @@ function CompanyDashboard({
             Le brouillon fictif a été enregistré dans vos offres.
           </div>
         )}
+        {statusError && (
+          <div
+            role="alert"
+            className="mb-5 flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800"
+          >
+            <FileCheck2 size={19} className="shrink-0" />
+            {statusError}
+          </div>
+        )}
         {active === "Aperçu" && (
           <>
             <div className="stats-grid">
@@ -1611,7 +1670,7 @@ function CompanyDashboard({
                 value={String(
                   3 -
                     closedOffers.length +
-                    createdOffers.filter((offer) => offer.status === "Active").length,
+                    createdOffers.filter((offer) => offer.status === "PUBLISHED").length,
                 )}
                 label="Offres actives"
                 tone="blue"
@@ -1685,43 +1744,30 @@ function CompanyDashboard({
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-[#0c2340]">{offer.title}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      Créée le 16 déc. 2026 · Donnée fictive
+                      Créée le{" "}
+                      {new Date(offer.createdAt).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}{" "}
+                      · Donnée fictive
                     </p>
                   </div>
                   <span
                     className={`status ${
-                      offer.status === "Active"
+                      offer.status === "PUBLISHED"
                         ? "bg-emerald-50 text-emerald-700"
-                        : offer.status === "Brouillon"
+                        : offer.status === "DRAFT"
                           ? "bg-blue-50 text-blue-700"
                           : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {offer.status}
+                    {OFFER_STATUS_LABELS[offer.status]}
                   </span>
-                  <button
-                    onClick={() =>
-                      setCreatedOffers((items) =>
-                        items.map((item) =>
-                          item.id === offer.id
-                            ? {
-                                ...item,
-                                status:
-                                  item.status === "Brouillon"
-                                    ? "Active"
-                                    : item.status === "Active"
-                                      ? "Clôturée"
-                                      : "Active",
-                              }
-                            : item,
-                        ),
-                      )
-                    }
-                    className="offer-toggle"
-                  >
-                    {offer.status === "Brouillon"
+                  <button onClick={() => changeOfferStatus(offer)} className="offer-toggle">
+                    {offer.status === "DRAFT"
                       ? "Publier"
-                      : offer.status === "Active"
+                      : offer.status === "PUBLISHED"
                         ? "Clôturer"
                         : "Réouvrir"}
                   </button>
@@ -1767,20 +1813,8 @@ function CompanyDashboard({
       {publish && (
         <PublishModal
           onClose={() => setPublish(false)}
-          onPublish={(title) => {
-            setCreatedOffers((items) => [{ id: Date.now(), title, status: "Active" }, ...items]);
-            setPublish(false);
-            setPublished(true);
-            setDraftSaved(false);
-            setActive("Mes offres");
-          }}
-          onDraft={(title) => {
-            setCreatedOffers((items) => [{ id: Date.now(), title, status: "Brouillon" }, ...items]);
-            setPublish(false);
-            setDraftSaved(true);
-            setPublished(false);
-            setActive("Mes offres");
-          }}
+          onPublish={(offer) => addOffer(offer, "PUBLISHED")}
+          onDraft={(offer) => addOffer(offer, "DRAFT")}
         />
       )}
     </DashboardLayout>
@@ -1897,22 +1931,83 @@ function CompanyProfile() {
   );
 }
 
+/** Valeurs de départ du formulaire (identiques aux premières options affichées auparavant). */
+const emptyOfferForm: OfferFormValues = {
+  title: "",
+  type: "JOB",
+  city: "Conakry",
+  domain: "Marketing",
+  description: "",
+  deadline: "",
+  skills: "",
+};
+
+/** Message d'erreur affiché sous un champ ; n'affiche rien s'il n'y a pas d'erreur. */
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <small id={id} className="mt-1.5 block text-xs font-medium text-red-600">
+      {message}
+    </small>
+  );
+}
+
 function PublishModal({
   onClose,
   onPublish,
   onDraft,
 }: {
   onClose: () => void;
-  onPublish: (title: string) => void;
-  onDraft: (title: string) => void;
+  onPublish: (offer: OfferInput) => void;
+  onDraft: (offer: OfferInput) => void;
 }) {
-  const [title, setTitle] = useState("");
+  // Un seul état regroupe tous les champs : React connaît en permanence chaque valeur.
+  const [values, setValues] = useState<OfferFormValues>(emptyOfferForm);
+  const [errors, setErrors] = useState<OfferErrors>({});
+  const today = todayIsoDate();
+
+  /** Met à jour un champ et efface son erreur dès que l'utilisateur le corrige. */
+  const update = <K extends OfferField>(field: K, value: OfferFormValues[K]) => {
+    setValues((current) => ({ ...current, [field]: value }));
+    setErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  /** Valide selon le mode, puis transmet l'objet complet au parent si tout est correct. */
+  const submit = (mode: ValidationMode, form: HTMLFormElement | null) => {
+    const result = validateOffer(values, mode, today);
+    if (!result.ok) {
+      setErrors(result.errors);
+      // Place le curseur sur le premier champ en erreur (les erreurs suivent l'ordre du formulaire).
+      const firstField = Object.keys(result.errors)[0];
+      const element = firstField ? form?.elements.namedItem(firstField) : null;
+      if (element instanceof HTMLElement) element.focus();
+      return;
+    }
+    setErrors({});
+    if (mode === "publish") onPublish(result.data);
+    else onDraft(result.data);
+  };
+
+  /** Attributs d'accessibilité communs : signale le champ invalide aux lecteurs d'écran. */
+  const fieldState = (field: OfferField) => ({
+    name: field,
+    "aria-invalid": errors[field] ? true : undefined,
+    "aria-describedby": errors[field] ? `offer-${field}-error` : undefined,
+    className: errors[field] ? "border-red-300" : undefined,
+  });
+
   return (
     <div className="modal-backdrop">
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          onPublish(title.trim());
+          submit("publish", e.currentTarget);
         }}
         className="modal-card max-h-[90vh] overflow-y-auto"
       >
@@ -1930,57 +2025,96 @@ function PublishModal({
             Intitulé du poste
             <input
               required
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              {...fieldState("title")}
+              value={values.title}
+              onChange={(event) => update("title", event.target.value)}
               placeholder="Ex. Assistant·e administratif·ve"
             />
+            <FieldError id="offer-title-error" message={errors.title} />
           </label>
           <label className="form-label">
             Type
-            <select>
-              <option>Emploi</option>
-              <option>Stage</option>
+            <select
+              {...fieldState("type")}
+              value={values.type}
+              onChange={(event) => update("type", event.target.value as OfferFormValues["type"])}
+            >
+              {OFFER_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {OFFER_TYPE_LABELS[type]}
+                </option>
+              ))}
             </select>
+            <FieldError id="offer-type-error" message={errors.type} />
           </label>
           <label className="form-label">
             Ville
-            <select>
-              <option>Conakry</option>
-              <option>Kindia</option>
-              <option>Labé</option>
+            <select
+              {...fieldState("city")}
+              value={values.city}
+              onChange={(event) => update("city", event.target.value as OfferFormValues["city"])}
+            >
+              {OFFER_CITIES.map((city) => (
+                <option key={city}>{city}</option>
+              ))}
             </select>
+            <FieldError id="offer-city-error" message={errors.city} />
           </label>
           <label className="form-label sm:col-span-2">
             Domaine
-            <select>
-              <option>Marketing</option>
-              <option>Informatique</option>
-              <option>Commerce</option>
-              <option>Finance</option>
+            <select
+              {...fieldState("domain")}
+              value={values.domain}
+              onChange={(event) =>
+                update("domain", event.target.value as OfferFormValues["domain"])
+              }
+            >
+              {OFFER_DOMAINS.map((domain) => (
+                <option key={domain}>{domain}</option>
+              ))}
             </select>
+            <FieldError id="offer-domain-error" message={errors.domain} />
           </label>
           <label className="form-label sm:col-span-2">
             Description
             <textarea
               required
               rows={5}
+              {...fieldState("description")}
+              value={values.description}
+              onChange={(event) => update("description", event.target.value)}
               placeholder="Décrivez les missions et le profil recherché..."
             />
+            <FieldError id="offer-description-error" message={errors.description} />
           </label>
           <label className="form-label">
             Date limite
-            <input required min="2026-12-17" type="date" />
+            <input
+              required
+              min={today}
+              type="date"
+              {...fieldState("deadline")}
+              value={values.deadline}
+              onChange={(event) => update("deadline", event.target.value)}
+            />
+            <FieldError id="offer-deadline-error" message={errors.deadline} />
           </label>
           <label className="form-label">
             Compétences
-            <input placeholder="Excel, communication..." />
+            <input
+              {...fieldState("skills")}
+              value={values.skills}
+              onChange={(event) => update("skills", event.target.value)}
+              placeholder="Excel, communication..."
+            />
+            <FieldError id="offer-skills-error" message={errors.skills} />
           </label>
         </div>
         <div className="mt-6 flex gap-3">
           <button
             type="button"
-            disabled={!title.trim()}
-            onClick={() => onDraft(title.trim())}
+            disabled={!values.title.trim()}
+            onClick={(event) => submit("draft", event.currentTarget.form)}
             className="btn-secondary flex-1 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Enregistrer en brouillon

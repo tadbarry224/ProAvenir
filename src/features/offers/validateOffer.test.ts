@@ -1,9 +1,9 @@
 /**
  * Tests de la validation des offres.
- * Lancement : npm test
- * Outil : node:test, intégré à Node (aucune dépendance supplémentaire).
+ * Lancement : npm test (Vitest)
+ * Outil : Vitest (les assertions utilisent node:assert, intégré à Node).
  */
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import type { OfferFormValues } from "../../types/offer.ts";
 import {

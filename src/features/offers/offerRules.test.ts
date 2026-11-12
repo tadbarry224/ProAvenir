@@ -1,8 +1,8 @@
 /**
  * Tests des règles de visibilité et de changement de statut des offres.
- * Lancement : npm test
+ * Lancement : npm test (Vitest)
  */
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import type { Offer } from "../../types/offer.ts";
 import { mockOffers } from "../../data/mockOffers.ts";

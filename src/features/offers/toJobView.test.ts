@@ -1,8 +1,8 @@
 /**
  * Tests de la conversion Offer → Job (modèle d'affichage).
- * Lancement : npm test
+ * Lancement : npm test (Vitest)
  */
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import type { Company, Offer } from "../../types/offer.ts";
 import { formatShortDate, toJobView } from "./toJobView.ts";

@@ -14,6 +14,25 @@ export interface EnvironmentVariables {
   DATABASE_URL: string;
   /** Origines autorisées par CORS (liste issue de CORS_ORIGIN, séparée par des virgules). */
   CORS_ORIGINS: string[];
+  /** Secret de signature des jetons d'accès (JWT). Ne jamais l'afficher ni le versionner. */
+  JWT_ACCESS_SECRET: string;
+  /** Durée de vie d'un jeton d'accès, en secondes (issue de ACCESS_TOKEN_TTL, ex. « 15m »). */
+  ACCESS_TOKEN_TTL_SECONDS: number;
+  /** Durée maximale d'une session « Se souvenir de moi », en jours. */
+  REFRESH_TOKEN_TTL_DAYS: number;
+}
+
+/** Morceaux de texte qui trahissent un secret d'exemple ou de démonstration. */
+const PLACEHOLDER_SECRETS =
+  /change-?me|example|exemple|secret|demo|test|password/i;
+
+/** « 90s », « 15m », « 1h » → secondes ; `null` si le format est invalide. */
+function parseDuration(value: string): number | null {
+  const match = /^(\d+)(s|m|h)$/.exec(value);
+  if (!match) return null;
+  return (
+    Number(match[1]) * { s: 1, m: 60, h: 3600 }[match[2] as 's' | 'm' | 'h']
+  );
 }
 
 const NODE_ENVS: NodeEnv[] = ['development', 'test', 'production'];
@@ -60,6 +79,32 @@ export function validateEnv(
     );
   }
 
+  const jwtSecret = text('JWT_ACCESS_SECRET');
+  if (jwtSecret.length < 32 || /change-?me/i.test(jwtSecret)) {
+    errors.push(
+      'JWT_ACCESS_SECRET doit être un secret aléatoire d’au moins 32 caractères (voir .env.example pour le générer).',
+    );
+  } else if (
+    nodeEnv === 'production' &&
+    (PLACEHOLDER_SECRETS.test(jwtSecret) || new Set(jwtSecret).size < 16)
+  ) {
+    errors.push(
+      'JWT_ACCESS_SECRET ressemble à un secret de démonstration : interdit en production.',
+    );
+  }
+
+  const accessTtl = parseDuration(text('ACCESS_TOKEN_TTL') || '15m');
+  if (accessTtl === null || accessTtl < 60 || accessTtl > 3600) {
+    errors.push(
+      'ACCESS_TOKEN_TTL doit être une durée entre 1 minute et 1 heure (ex. 15m).',
+    );
+  }
+
+  const refreshDays = Number(text('REFRESH_TOKEN_TTL_DAYS') || '30');
+  if (!Number.isInteger(refreshDays) || refreshDays < 1 || refreshDays > 90) {
+    errors.push('REFRESH_TOKEN_TTL_DAYS doit être un entier entre 1 et 90.');
+  }
+
   if (errors.length > 0) {
     throw new Error(
       `Configuration invalide (backend/.env) :\n- ${errors.join('\n- ')}`,
@@ -71,5 +116,8 @@ export function validateEnv(
     PORT: port,
     DATABASE_URL: databaseUrl,
     CORS_ORIGINS: corsOrigins,
+    JWT_ACCESS_SECRET: jwtSecret,
+    ACCESS_TOKEN_TTL_SECONDS: accessTtl as number,
+    REFRESH_TOKEN_TTL_DAYS: refreshDays,
   };
 }

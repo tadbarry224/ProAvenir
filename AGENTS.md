@@ -19,8 +19,9 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `src/components/` - Reusable UI without business logic: `layout/` (Logo, Header, Footer, DashboardLayout, DashboardTop), `ui/` (StatCard, CardHeading, FieldError), `jobs/` (JobLogo, JobCard, MiniJob)
 - `src/features/offers/` - Offer business logic: validation (`validateOffer`), rules (`offerRules`), display mapping (`toJobView`, `publicOfferToJob`), public data hooks (`usePublicOffers`, `useReferenceLists`: API), company state hook (`useOffers`: local mock data until step B4), `PublishModal`
 - `src/features/applications/` - Application tables and status styles
+- `src/features/auth/` - Session state: `AuthProvider` (restores the session from the httpOnly cookie on load, keeps the access token in memory only, renews it before expiry), `useAuth()` in `authContext.ts`, `demoAccounts` (dev-only email prefill, no passwords)
 - `src/types/` - Shared TypeScript types (`offer`, `application`, `admin`, `navigation`)
-- `src/services/` - HTTP calls to the NestJS API: `apiClient` (base URL from `VITE_API_URL`, French `ApiError` messages, timeout), `offersService`, `referenceService` (cities, domains). Depends only on `types`.
+- `src/services/` - HTTP calls to the NestJS API: `apiClient` (base URL from `VITE_API_URL`, French `ApiError` messages, timeout), `offersService`, `referenceService` (cities, domains), `authService` (login/register/refresh/logout/me with `credentials: "include"` and the `X-ProAvenir-CSRF` header). Depends only on `types`.
 - `src/data/` - Mock data, still used by the company, candidate and admin dashboards (to be replaced by the NestJS API)
 - `src/lib/` - Generic helpers (`dates`, `useApiData` loading/error/success hook)
 - `.env.example` - Frontend configuration template; copy to `.env` (git-ignored) with `VITE_API_URL=http://localhost:3001/api`
@@ -48,6 +49,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `src/App.render.test.tsx` compares each screen with the HTML snapshots in `src/__snapshots__/pages/`. Any rendering change fails the test; update snapshots with `npm test -- -u` only for intended design changes, then review `git diff`.
 - `src/App.flows.test.tsx` covers user journeys (search, apply, publish, drafts, closing, navigation, admin). Pure logic is tested next to its file (`*.test.ts`).
 - UI tests import only `App` and navigate like a user, so moving components does not require changing tests.
+- Protected spaces (`candidate`, `company`, `admin`) require a session with the matching role (`PROTECTED_PAGES` in `src/types/auth.ts`); otherwise `App` redirects to login or to the user's own space. In tests use `renderApp({ as: "COMPANY" })` (session already open) or `loginWithForm(role)` (real form). The fake API checks the CSRF header and `credentials: "include"`; its demo accounts use `TEST_PASSWORD`.
 - UI tests never call the real backend: `setupAppTest()` replaces `fetch` with `src/test/fakeApi.ts`, which serves real API responses captured in `src/test/fixtures/` and applies the same filters. `renderApp()` and `goTo()` are async and wait for requests (`settle()`). `installFakeApi({ down: true })` or `{ offersStatus: 500 }` simulates failures. Recapture the fixtures with `curl` if the seed or the API response shape changes.
 
 ## Dependencies

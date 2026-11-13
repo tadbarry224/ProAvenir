@@ -33,6 +33,7 @@ npm run db:seed             # insère les données de démonstration
 | `npm run db:migrate` | applique les migrations en attente (`prisma migrate deploy`, jamais de réinitialisation) |
 | `npm run db:generate` | régénère le client Prisma après une modification de `schema.prisma` |
 | `npm run db:seed` | insère ou met à jour les données de démonstration (relançable sans doublon) |
+| `npm run db:set-password -- <e-mail>` | définit le mot de passe d'un compte (saisie masquée, argon2id) et révoque ses sessions |
 
 **Modifier le modèle** : éditer `prisma/schema.prisma`, puis
 `npx prisma migrate dev --name description-courte --create-only` pour générer la
@@ -87,6 +88,26 @@ Exemple : http://localhost:3001/api/offers?city=conakry&type=JOB&q=web
 
 Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics sont lus en base (`publicOfferSelect` dans `src/offers/public-offer.ts`) : aucune donnée de compte ni de contact.
 
+## Authentification
+
+| Route | Accès | Effet |
+| --- | --- | --- |
+| `POST /api/auth/register` | public + CSRF | Crée un candidat (avec profil) ou une entreprise `PENDING` + son propriétaire, en une transaction. `ADMIN` refusé (400), e-mail déjà pris (409). |
+| `POST /api/auth/login` | public + CSRF | `{ email, password, rememberMe }` → `{ accessToken, expiresIn, user }` + cookie. 5 essais/min/IP. |
+| `POST /api/auth/refresh` | public + CSRF | Rotation du cookie, nouveau jeton d'accès. `401 SESSION_ROTATED` si un autre onglet vient de renouveler. |
+| `POST /api/auth/logout` | public + CSRF | Révoque la session, efface le cookie (204). |
+| `GET /api/auth/me` | connecté | Utilisateur courant (sans hash). |
+
+- **Par défaut, toute route exige un jeton d'accès** (`Authorization: Bearer …`, garde globale
+  `JwtAuthGuard`). Une route publique doit être marquée `@Public()`. Restreindre par rôle :
+  `@Roles('ADMIN')` (garde globale `RolesGuard`). Le compte (actif, rôle) est relu en base à
+  chaque requête.
+- **CSRF** : les routes `/api/auth/*` exigent l'en-tête `X-ProAvenir-CSRF: 1` et refusent une
+  origine absente de `CORS_ORIGIN` (`CsrfGuard`), en plus du cookie `SameSite=Strict`.
+- **Sessions** : table `RefreshToken` (empreinte SHA-256, `expiresAt` = fin absolue,
+  `persistent` = « Se souvenir de moi »). Sans « Se souvenir de moi » : 24 h maximum.
+- Les sessions expirées ou révoquées restent en base ; un nettoyage périodique est prévu plus tard.
+
 ## Tests et vérifications
 
 ```bash
@@ -129,6 +150,7 @@ backend/
 │   ├── prisma/            PrismaService (connexion unique à la base)
 │   ├── common/            ClockService (date du jour à Conakry, remplaçable en test)
 │   ├── health/            GET /api/health
+│   ├── auth/              inscription, connexion, sessions, gardes (JWT, rôles, CSRF), argon2id
 │   ├── reference/         GET /api/cities, GET /api/domains
 │   └── offers/            GET /api/offers (filtres validés par ListOffersQueryDto)
 └── test/                  tests de bout en bout

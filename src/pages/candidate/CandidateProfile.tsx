@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Check, FileText, Upload } from "lucide-react";
 
-export function CandidateProfile() {
+export function CandidateProfile({ fullName }: { fullName: string }) {
   const [saved, setSaved] = useState(false);
   const [cvName, setCvName] = useState("CV_Mariama_Diallo.pdf");
   return (
@@ -16,7 +16,7 @@ export function CandidateProfile() {
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="form-label">
             Nom complet
-            <input required defaultValue="Mariama Diallo" />
+            <input required defaultValue={fullName} />
           </label>
           <label className="form-label">
             Ville

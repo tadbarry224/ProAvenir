@@ -4,6 +4,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export interface HealthStatus {
@@ -19,6 +20,7 @@ export interface HealthStatus {
  * Aucun détail technique (message d'erreur, adresse de la base) n'est renvoyé :
  * il est seulement écrit dans les journaux du serveur.
  */
+@Public()
 @Controller('health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);

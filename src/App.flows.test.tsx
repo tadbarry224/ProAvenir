@@ -6,9 +6,10 @@
  */
 import assert from "node:assert/strict";
 import { fireEvent, screen, within } from "@testing-library/react";
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 import {
   goTo,
+  loginWithForm,
   openTab,
   renderApp,
   settle,
@@ -16,7 +17,7 @@ import {
   statValue,
   type,
 } from "./test/appTestUtils";
-import { installFakeApi } from "./test/fakeApi";
+import { FAKE_USERS, installFakeApi, TEST_PASSWORD } from "./test/fakeApi";
 
 /** Titre « N offre(s) disponible(s) » de la liste publique, une fois le chargement terminé. */
 async function offersCount() {
@@ -73,7 +74,7 @@ describe("Liste publique des offres", () => {
   });
 
   it("filtre par ville via l'API (Boké comprise)", async () => {
-    const requests = installFakeApi();
+    const { requests } = installFakeApi();
     await renderApp();
     await goTo("Offres");
     type(screen.getAllByDisplayValue("Toutes les villes")[0], "Boké");
@@ -83,7 +84,7 @@ describe("Liste publique des offres", () => {
   });
 
   it("combine domaine, type et recherche dans la requête envoyée", async () => {
-    const requests = installFakeApi();
+    const { requests } = installFakeApi();
     await renderApp();
     await goTo("Offres");
     type(screen.getAllByDisplayValue("Tous les domaines")[0], "Finance");
@@ -164,7 +165,7 @@ describe("Publication d'offres par une entreprise", () => {
   setupAppTest();
 
   it("refuse une publication incomplète et affiche les erreurs", async () => {
-    await renderApp();
+    await renderApp({ as: "COMPANY" });
     await openPublishModal();
     const draftButton = screen.getByRole("button", { name: "Enregistrer en brouillon" });
     assert.equal((draftButton as HTMLButtonElement).disabled, true);
@@ -178,7 +179,7 @@ describe("Publication d'offres par une entreprise", () => {
   // Jusqu'à l'étape B4, l'espace entreprise travaille sur des données locales :
   // ses actions ne modifient pas la liste publique, qui vient de PostgreSQL.
   it("publie une offre complète, conservée pendant la navigation (pas encore envoyée à l'API)", async () => {
-    await renderApp();
+    await renderApp({ as: "COMPANY" });
     await goTo("Espace entreprise");
     assert.equal(statValue("Offres actives"), "1");
 
@@ -200,7 +201,7 @@ describe("Publication d'offres par une entreprise", () => {
   });
 
   it("garde un brouillon hors de la liste publique", async () => {
-    await renderApp();
+    await renderApp({ as: "COMPANY" });
     await openPublishModal();
     type(screen.getByPlaceholderText("Ex. Assistant·e administratif·ve"), "Brouillon secret");
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer en brouillon" }));
@@ -213,7 +214,7 @@ describe("Publication d'offres par une entreprise", () => {
   });
 
   it("refuse de publier un brouillon incomplet depuis « Mes offres »", async () => {
-    await renderApp();
+    await renderApp({ as: "COMPANY" });
     await openPublishModal();
     type(screen.getByPlaceholderText("Ex. Assistant·e administratif·ve"), "Brouillon incomplet");
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer en brouillon" }));
@@ -224,7 +225,7 @@ describe("Publication d'offres par une entreprise", () => {
   });
 
   it("clôture une offre dans l'espace entreprise (liste publique inchangée avant B4)", async () => {
-    await renderApp();
+    await renderApp({ as: "COMPANY" });
     await goTo("Espace entreprise");
     openTab("Mes offres");
     fireEvent.click(screen.getByRole("button", { name: "Clôturer" }));
@@ -236,7 +237,7 @@ describe("Publication d'offres par une entreprise", () => {
   });
 
   it("n'affiche que les offres de l'entreprise connectée", async () => {
-    await renderApp();
+    await renderApp({ as: "COMPANY" });
     await goTo("Espace entreprise");
     openTab("Mes offres");
     screen.getByText("Assistant·e marketing digital");
@@ -247,22 +248,40 @@ describe("Publication d'offres par une entreprise", () => {
 describe("Suivi des candidatures", () => {
   setupAppTest();
 
-  it("le statut changé par l'entreprise est visible par la candidate", async () => {
+  it("le statut changé par l'entreprise est visible par la candidate (deux sessions)", async () => {
     await renderApp();
-    await goTo("Espace candidat");
+    await loginWithForm("CANDIDATE");
     assert.equal(statValue("Présélections"), "1");
+    fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+    await settle();
 
-    await goTo("Espace entreprise");
+    await loginWithForm("COMPANY");
     openTab("Candidatures");
     type(screen.getByDisplayValue("En examen"), "Présélectionnée");
+    fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+    await settle();
 
-    await goTo("Espace candidat");
+    await loginWithForm("CANDIDATE");
     assert.equal(statValue("Présélections"), "2");
   });
 });
 
-describe("Authentification (simulée)", () => {
+describe("Authentification", () => {
   setupAppTest();
+
+  /** Remplit le formulaire d'inscription (page déjà ouverte). */
+  function fillRegister(values: {
+    fullName: string;
+    email: string;
+    password: string;
+    company?: string;
+  }) {
+    type(screen.getByLabelText("Nom complet"), values.fullName);
+    if (values.company) type(screen.getByLabelText("Nom de l’entreprise"), values.company);
+    type(screen.getByLabelText("Adresse e-mail"), values.email);
+    type(screen.getByLabelText("Mot de passe"), values.password);
+    type(screen.getByLabelText("Confirmer le mot de passe"), values.password);
+  }
 
   it("signale deux mots de passe différents à l'inscription", async () => {
     await renderApp();
@@ -275,13 +294,174 @@ describe("Authentification (simulée)", () => {
     screen.getByText("Les deux mots de passe doivent être identiques.");
   });
 
-  it("la connexion mène à l'espace du rôle choisi", async () => {
+  it("inscrit un candidat et ouvre son espace", async () => {
+    const api = installFakeApi();
+    await renderApp();
+    fireEvent.click(screen.getAllByRole("button", { name: "Créer un compte" })[0]);
+    fillRegister({
+      fullName: "Aïssatou Camara",
+      email: "aissatou@exemple.com",
+      password: "motdepasse-123",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
+    await settle();
+    assert.equal(api.session?.role, "CANDIDATE");
+    assert.equal(api.session?.email, "aissatou@exemple.com");
+    // L'espace affiche la personne connectée, pas le compte de démonstration…
+    screen.getByText("Bonjour, Aïssatou");
+    screen.getAllByText("Aïssatou Camara");
+    assert.equal(screen.queryByText("Bonjour, Mariama"), null);
+    assert.equal(screen.queryByText("Mariama Diallo"), null);
+    // …et aucune candidature fictive : elle n'en a encore envoyé aucune.
+    assert.equal(statValue("Candidatures envoyées"), "0");
+    assert.equal(screen.queryByText("Kamsar Solutions"), null);
+  });
+
+  it("inscrit une entreprise (en attente de validation) et ouvre son espace", async () => {
+    const api = installFakeApi();
+    await renderApp();
+    fireEvent.click(screen.getAllByRole("button", { name: "Créer un compte" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Entreprise" }));
+    fillRegister({
+      fullName: "Ibrahima Camara",
+      company: "Labé Transport",
+      email: "rh@labe-transport.example",
+      password: "motdepasse-123",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
+    await settle();
+    assert.equal(api.session?.role, "COMPANY");
+    assert.equal(api.session?.company?.status, "PENDING");
+    // Sa propre entreprise et son vrai statut, pas « Kamsar Solutions · Compte vérifié »…
+    screen.getByText("Labé Transport · En attente de validation");
+    assert.equal(screen.queryByText(/Kamsar Solutions/), null);
+    // …et aucune offre ni candidature fictive de Kamsar.
+    assert.equal(statValue("Offres actives"), "0");
+    openTab("Mes offres");
+    assert.equal(screen.queryByText("Assistant·e marketing digital"), null);
+  });
+
+  it("affiche l'erreur de l'API si l'e-mail est déjà utilisé", async () => {
+    await renderApp();
+    fireEvent.click(screen.getAllByRole("button", { name: "Créer un compte" })[0]);
+    fillRegister({
+      fullName: "Mariama",
+      email: FAKE_USERS.CANDIDATE.email,
+      password: "motdepasse-123",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
+    await settle();
+    assert.match(screen.getByRole("alert").textContent ?? "", /existe déjà/);
+  });
+
+  it("la connexion mène à l'espace du rôle renvoyé par le serveur", async () => {
+    await renderApp();
+    await loginWithForm("COMPANY");
+    screen.getByText("Kamsar Solutions · Compte vérifié");
+  });
+
+  it("refuse des identifiants invalides avec un message clair", async () => {
+    await renderApp();
+    await loginWithForm("CANDIDATE", "mauvais-mot-de-passe");
+    assert.equal(screen.getByRole("alert").textContent, "E-mail ou mot de passe incorrect.");
+    screen.getByRole("heading", { level: 2, name: "Connexion" });
+  });
+
+  it("envoie l'en-tête CSRF, les cookies et « Se souvenir de moi »", async () => {
+    const api = installFakeApi();
     await renderApp();
     fireEvent.click(screen.getAllByRole("button", { name: "Se connecter" })[0]);
-    type(screen.getByLabelText("Adresse e-mail"), "mariama@exemple.com");
-    type(screen.getByLabelText("Mot de passe"), "motdepasse1");
-    fireEvent.click(screen.getByRole("button", { name: "Se connecter" }));
+    type(screen.getByLabelText("Adresse e-mail"), FAKE_USERS.ADMIN.email);
+    type(screen.getByLabelText("Mot de passe"), TEST_PASSWORD);
+    fireEvent.click(screen.getByLabelText("Se souvenir de moi"));
+    fireEvent.click(screen.getByRole("button", { name: /^Se connecter/ }));
+    await settle();
+    const call = vi
+      .mocked(fetch)
+      .mock.calls.find(([url]) => String(url).endsWith("/auth/login")) as [string, RequestInit];
+    assert.equal(call[1].credentials, "include");
+    assert.equal((call[1].headers as Record<string, string>)["X-ProAvenir-CSRF"], "1");
+    assert.deepEqual(JSON.parse(String(call[1].body)), {
+      email: FAKE_USERS.ADMIN.email,
+      password: TEST_PASSWORD,
+      rememberMe: true,
+    });
+    assert.equal(api.session?.role, "ADMIN");
+    screen.getAllByText("Entreprises à vérifier");
+  });
+
+  it("ne stocke aucun jeton dans localStorage ni sessionStorage", async () => {
+    await renderApp();
+    await loginWithForm("CANDIDATE");
+    assert.equal(localStorage.length, 0);
+    assert.equal(sessionStorage.length, 0);
+  });
+
+  it("restaure la session après un rechargement de la page (F5)", async () => {
+    const api = installFakeApi();
+    const { unmount } = await renderApp();
+    await loginWithForm("CANDIDATE");
+    unmount(); // fermeture de la page : la mémoire (jeton d'accès) est perdue…
+    await renderApp(); // …mais le cookie de session restaure la connexion
+    assert.ok(api.session);
+    await goTo("Espace candidat");
     screen.getByText("Bonjour, Mariama");
+  });
+
+  it("protège les espaces : sans session, redirection vers la connexion", async () => {
+    for (const space of ["Espace candidat", "Espace entreprise", "Administration"] as const) {
+      const { unmount } = await renderApp();
+      await goTo(space);
+      screen.getByRole("heading", { level: 2, name: "Connexion" });
+      assert.equal(screen.queryByText("Bonjour, Mariama"), null);
+      assert.equal(screen.queryByText("Entreprises à vérifier"), null);
+      unmount();
+    }
+  });
+
+  it("protège les espaces par rôle : un candidat ne voit ni l'administration ni l'entreprise", async () => {
+    await renderApp({ as: "CANDIDATE" });
+    await goTo("Administration");
+    assert.equal(screen.queryByText("Entreprises à vérifier"), null);
+    screen.getByText("Bonjour, Mariama"); // renvoyé vers son propre espace
+    await goTo("Espace entreprise");
+    assert.equal(screen.queryByText("Kamsar Solutions · Compte vérifié"), null);
+    screen.getByText("Bonjour, Mariama");
+  });
+
+  it("la déconnexion révoque la session côté serveur", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await goTo("Espace entreprise");
+    fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+    await settle();
+    assert.equal(api.session, null);
+    await goTo("Espace entreprise");
+    screen.getByRole("heading", { level: 2, name: "Connexion" });
+  });
+
+  it("« Mot de passe oublié » indique honnêtement que ce n'est pas disponible", async () => {
+    await renderApp();
+    fireEvent.click(screen.getAllByRole("button", { name: "Se connecter" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Mot de passe oublié ?" }));
+    screen.getByText(/pas encore disponible\. Aucun e-mail n’a\s+été envoyé/);
+  });
+
+  it("l'accès rapide de démonstration préremplit l'e-mail sans contourner la connexion", async () => {
+    const api = installFakeApi();
+    await renderApp();
+    fireEvent.click(screen.getAllByRole("button", { name: "Se connecter" })[0]);
+    const demo = within(document.querySelector(".demo-access") as HTMLElement);
+    fireEvent.click(demo.getByRole("button", { name: "Admin" }));
+    await settle();
+    // Toujours sur la page de connexion, sans session :
+    screen.getByRole("heading", { level: 2, name: "Connexion" });
+    assert.equal(api.session, null);
+    assert.equal(
+      (screen.getByLabelText("Adresse e-mail") as HTMLInputElement).value,
+      FAKE_USERS.ADMIN.email,
+    );
+    screen.getByText(/saisissez son mot de passe/);
   });
 });
 
@@ -289,7 +469,7 @@ describe("Administration", () => {
   setupAppTest();
 
   it("approuver une entreprise met à jour le compteur", async () => {
-    await renderApp();
+    await renderApp({ as: "ADMIN" });
     await goTo("Administration");
     assert.equal(statValue("Entreprises à vérifier"), "3");
     fireEvent.click(screen.getAllByRole("button", { name: "Approuver" })[0]);
@@ -305,7 +485,7 @@ describe("Navigation (en-tête, pied de page, espaces)", () => {
   const isHome = () => screen.queryByText("Dernières opportunités") !== null;
 
   it("la navigation principale de l'en-tête mène aux bonnes pages", async () => {
-    await renderApp();
+    await renderApp({ as: "COMPANY" });
     const nav = within(document.querySelector("header nav") as HTMLElement);
     fireEvent.click(nav.getByRole("button", { name: "Offres" }));
     assert.equal(await offersCount(), "6 offres disponibles");
@@ -322,6 +502,7 @@ describe("Navigation (en-tête, pied de page, espaces)", () => {
         name: "Espace entreprise",
       }),
     );
+    await settle();
     screen.getByText("Kamsar Solutions · Compte vérifié");
   });
 
@@ -350,13 +531,17 @@ describe("Navigation (en-tête, pied de page, espaces)", () => {
   });
 
   it("« Découvrir les offres » et « Déconnexion » quittent l'espace candidat", async () => {
-    await renderApp();
+    await renderApp({ as: "CANDIDATE" });
     await goTo("Espace candidat");
     openTab("Découvrir les offres");
     assert.equal(await offersCount(), "6 offres disponibles");
 
     await goTo("Espace candidat");
     fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+    await settle();
     assert.equal(isHome(), true);
+    // Session fermée : l'espace n'est plus accessible.
+    await goTo("Espace candidat");
+    screen.getByRole("heading", { level: 2, name: "Connexion" });
   });
 });

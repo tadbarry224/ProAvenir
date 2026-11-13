@@ -253,13 +253,16 @@ model Application {
 /// Jeton de rafraîchissement (phase B3). Seule son empreinte est stockée :
 /// une fuite de la base ne permet pas de se connecter. Révocable (déconnexion).
 model RefreshToken {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @db.Uuid
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime  @db.Timestamptz(3)
-  revokedAt DateTime? @db.Timestamptz(3)
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  /// Fin ABSOLUE de la session : conservée telle quelle à chaque rotation du jeton.
+  expiresAt  DateTime  @db.Timestamptz(3)
+  /// « Se souvenir de moi » : cookie persistant (true) ou cookie de session (false).
+  persistent Boolean   @default(false)
+  revokedAt  DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([userId])
 }

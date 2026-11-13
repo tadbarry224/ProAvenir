@@ -16,16 +16,31 @@ const TIMEOUT_MS = 10_000;
 export class ApiError extends Error {
   /** Code HTTP (404, 500…), ou `null` si le serveur n'a pas répondu. */
   readonly status: number | null;
+  /** Code d'erreur métier renvoyé par l'API (ex. "SESSION_ROTATED"), s'il existe. */
+  readonly code: string | undefined;
 
-  constructor(message: string, status: number | null = null) {
+  constructor(message: string, status: number | null = null, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
 /** Paramètres de requête ; les valeurs vides ou absentes ne sont pas envoyées. */
 export type QueryParams = Record<string, string | undefined>;
+
+export type ApiRequestOptions = {
+  method?: "GET" | "POST";
+  params?: QueryParams;
+  /** Corps JSON de la requête. */
+  body?: unknown;
+  /** Annulation (ex. l'utilisateur change de filtre). */
+  signal?: AbortSignal;
+  headers?: Record<string, string>;
+  /** "include" : envoie et reçoit les cookies (session), même vers l'adresse de l'API. */
+  credentials?: RequestCredentials;
+};
 
 function apiBaseUrl(): string {
   const url = import.meta.env.VITE_API_URL;
@@ -47,15 +62,20 @@ export function apiUrl(path: string, params: QueryParams = {}): string {
   return `${apiBaseUrl()}${path}${search ? `?${search}` : ""}`;
 }
 
+/** Message d'erreur envoyé par l'API ({ message: "…" } ou { message: ["…", …] }). */
+function serverMessage(body: unknown): string | undefined {
+  const message = (body as { message?: unknown } | null)?.message;
+  if (typeof message === "string") return message;
+  if (Array.isArray(message) && typeof message[0] === "string") return message.join(" ");
+  return undefined;
+}
+
 /**
- * Requête GET qui renvoie le JSON de la réponse.
- * `signal` permet d'annuler la requête (ex. l'utilisateur change de filtre).
+ * Envoie une requête et renvoie le JSON de la réponse (`undefined` pour une
+ * réponse sans contenu, 204).
  */
-export async function apiGet<T>(
-  path: string,
-  params?: QueryParams,
-  signal?: AbortSignal,
-): Promise<T> {
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const { method = "GET", params, body, signal, headers, credentials } = options;
   const url = apiUrl(path, params);
 
   // Annulation : par l'appelant OU après TIMEOUT_MS.
@@ -67,7 +87,14 @@ export async function apiGet<T>(
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { Accept: "application/json" },
+      method,
+      headers: {
+        Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...headers,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      credentials,
       signal: controller.signal,
     });
   } catch (error) {
@@ -83,17 +110,31 @@ export async function apiGet<T>(
     signal?.removeEventListener("abort", onAbort);
   }
 
+  if (response.status === 204) return undefined as T;
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    if (response.ok) throw new ApiError("La réponse du serveur est illisible.", response.status);
+  }
+
   if (!response.ok) {
+    const code = (data as { code?: unknown } | undefined)?.code;
     throw new ApiError(
       response.status >= 500
         ? "Le serveur rencontre un problème. Réessayez dans un instant."
-        : `La demande n’a pas pu être traitée (erreur ${response.status}).`,
+        : // Les messages 4xx de l'API sont rédigés en français pour l'utilisateur.
+          (serverMessage(data) ??
+            `La demande n’a pas pu être traitée (erreur ${response.status}).`),
       response.status,
+      typeof code === "string" ? code : undefined,
     );
   }
-  try {
-    return (await response.json()) as T;
-  } catch {
-    throw new ApiError("La réponse du serveur est illisible.", response.status);
-  }
+  return data as T;
+}
+
+/** Requête GET (raccourci de `apiRequest`). */
+export function apiGet<T>(path: string, params?: QueryParams, signal?: AbortSignal): Promise<T> {
+  return apiRequest<T>(path, { params, signal });
 }

@@ -14,7 +14,9 @@ import {
   MARIAMA_PROFILE_ID,
   companyId,
   companyOwnerId,
+  companyOwners,
   offerId,
+  users,
 } from '../prisma/seed-data.js';
 // Règle publique réellement utilisée par GET /api/offers.
 import { publicOffersWhere } from '../src/offers/public-offer.js';
@@ -67,10 +69,14 @@ describe('Données de départ', () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
-  it('ne contiennent aucun mot de passe', async () => {
-    expect(
-      await prisma.user.count({ where: { passwordHash: { not: null } } }),
-    ).toBe(0);
+  // La base de développement peut contenir des mots de passe légitimes (comptes
+  // inscrits, `db:set-password`) : on vérifie que les DONNÉES DE DÉPART n'en écrivent
+  // jamais, ni à la création, ni lors d'une nouvelle exécution du seed (qui ne doit
+  // pas effacer un mot de passe défini localement).
+  it('ne contiennent ni n’écrasent aucun mot de passe', () => {
+    for (const user of [...users, ...companyOwners.map((o) => o.user)]) {
+      expect(user).not.toHaveProperty('passwordHash');
+    }
   });
 });
 

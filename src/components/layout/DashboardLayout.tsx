@@ -11,16 +11,20 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { Page } from "../../types/navigation";
+import type { DashboardIdentity } from "../../types/auth";
 import { Logo } from "./Logo";
 
 export function DashboardLayout({
   area,
+  identity,
   go,
   active,
   setActive,
   children,
 }: {
   area: "candidate" | "company" | "admin";
+  /** Personne connectée (issue de la session). */
+  identity: DashboardIdentity;
   go: (p: Page) => void;
   active: string;
   setActive: (x: string) => void;
@@ -74,19 +78,13 @@ export function DashboardLayout({
         </nav>
         <div className="mt-auto">
           <div className="workspace-card">
-            <span>{area === "candidate" ? "MD" : area === "company" ? "KS" : "AD"}</span>
+            <span>{identity.initials}</span>
             <div>
-              <b>
-                {area === "candidate"
-                  ? "Mariama Diallo"
-                  : area === "company"
-                    ? "Kamsar Solutions"
-                    : "Administrateur"}
-              </b>
-              <small>{area === "admin" ? "Accès sécurisé" : "Compte vérifié"}</small>
+              <b>{identity.name}</b>
+              <small>{identity.statusLabel}</small>
             </div>
           </div>
-          <button onClick={() => go("home")} className="dashboard-link">
+          <button onClick={() => go("logout")} className="dashboard-link">
             <LogOut size={18} />
             Déconnexion
           </button>

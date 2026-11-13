@@ -15,6 +15,7 @@ import {
   type OfferStatus,
 } from "../../types/offer";
 import type { Page } from "../../types/navigation";
+import type { DashboardIdentity } from "../../types/auth";
 import type { RecruitApplication } from "../../types/application";
 import { getDisplayStatus, isPubliclyVisible } from "../../features/offers/offerRules";
 import { toJobView } from "../../features/offers/toJobView";
@@ -32,6 +33,7 @@ import { CompanyProfile } from "./CompanyProfile";
 export function CompanyDashboard({
   go,
   company,
+  identity,
   offers,
   today,
   applications,
@@ -41,6 +43,8 @@ export function CompanyDashboard({
 }: {
   go: (p: Page) => void;
   company: Company;
+  /** Entreprise connectée (nom, statut de validation) issue de la session. */
+  identity: DashboardIdentity;
   offers: Offer[]; // uniquement les offres de cette entreprise
   today: string;
   applications: RecruitApplication[];
@@ -79,13 +83,19 @@ export function CompanyDashboard({
     }
   };
   return (
-    <DashboardLayout area="company" go={go} active={active} setActive={setActive}>
+    <DashboardLayout
+      area="company"
+      identity={identity}
+      go={go}
+      active={active}
+      setActive={setActive}
+    >
       <DashboardTop
         title={active === "Aperçu" ? "Espace entreprise" : active}
-        subtitle={`${company.name} · Compte vérifié`}
+        subtitle={`${identity.name} · ${identity.statusLabel}`}
         action="Publier une offre"
         onAction={() => setPublish(true)}
-        avatar={company.initials}
+        avatar={identity.initials}
       />
       <div className="dashboard-content">
         {published && (
@@ -221,7 +231,7 @@ export function CompanyDashboard({
             </div>
           </div>
         )}
-        {active === "Profil entreprise" && <CompanyProfile />}
+        {active === "Profil entreprise" && <CompanyProfile companyName={identity.name} />}
       </div>
       {publish && (
         <PublishModal

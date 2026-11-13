@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 
-export function CompanyProfile() {
+export function CompanyProfile({ companyName }: { companyName: string }) {
   const [saved, setSaved] = useState(false);
   return (
     <form
@@ -14,7 +14,7 @@ export function CompanyProfile() {
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="form-label sm:col-span-2">
           Nom de l’entreprise
-          <input required defaultValue="Kamsar Solutions" />
+          <input required defaultValue={companyName} />
         </label>
         <label className="form-label">
           Secteur

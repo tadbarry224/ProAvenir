@@ -10,7 +10,8 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import App from "../App";
-import { installFakeApi } from "./fakeApi";
+import { FAKE_USERS, installFakeApi, TEST_PASSWORD } from "./fakeApi";
+import type { UserRole } from "../types/auth";
 
 /** Date figée : les offres visibles et les dates affichées ne dépendent pas du jour du test. */
 export const FIXED_NOW = new Date("2026-11-12T10:00:00.000Z");
@@ -45,10 +46,29 @@ export async function settle() {
   }
 }
 
-export async function renderApp() {
+/**
+ * Affiche l'application et attend la fin des chargements.
+ * `as` : une session est déjà ouverte pour ce rôle (cookie présent), comme
+ * pour un utilisateur connecté qui revient sur le site.
+ */
+export async function renderApp(options: { as?: UserRole } = {}) {
+  if (options.as) installFakeApi({ session: options.as });
   const result = render(<App />);
   await settle();
   return result;
+}
+
+/** Se connecte avec le VRAI formulaire de connexion (compte de démonstration du faux serveur). */
+export async function loginWithForm(role: UserRole, password = TEST_PASSWORD) {
+  // À appeler depuis une page publique (bouton « Se connecter » de l'en-tête).
+  fireEvent.click(screen.getAllByRole("button", { name: "Se connecter" })[0]);
+  await settle();
+  fireEvent.change(screen.getByLabelText("Adresse e-mail"), {
+    target: { value: FAKE_USERS[role].email },
+  });
+  fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: password } });
+  fireEvent.click(screen.getByRole("button", { name: /^Se connecter/ }));
+  await settle();
 }
 
 export type MenuLabel =

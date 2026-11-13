@@ -13,4 +13,6 @@ export type Page =
   | "register"
   | "candidate"
   | "company"
-  | "admin";
+  | "admin"
+  /** Pas une page : demande de déconnexion (révoque la session, puis accueil). */
+  | "logout";

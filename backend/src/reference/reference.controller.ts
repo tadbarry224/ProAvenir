@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators.js';
 import { ReferenceService, type ReferenceItem } from './reference.service.js';
 
 /** Réponse d'une liste : toujours enveloppée dans `data` (même forme que /offers). */
@@ -12,6 +13,7 @@ export interface ListResponse<T> {
  * - GET /api/domains → { data: [{ id: "commerce", name: "Commerce" }, …] }
  * Triés par ordre alphabétique.
  */
+@Public()
 @Controller()
 export class ReferenceController {
   constructor(private readonly reference: ReferenceService) {}

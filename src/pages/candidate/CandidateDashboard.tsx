@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CheckCircle2, Eye, FileText } from "lucide-react";
 import type { Job } from "../../types/offer";
 import type { Page } from "../../types/navigation";
+import type { DashboardIdentity } from "../../types/auth";
 import { candidateApplications } from "../../data/mockApplications";
 import { StatCard } from "../../components/ui/StatCard";
 import { CardHeading } from "../../components/ui/CardHeading";
@@ -14,32 +15,50 @@ import { CandidateProfile } from "./CandidateProfile";
 export function CandidateDashboard({
   jobs,
   go,
+  identity,
+  showDemoData,
   applicationStatus,
 }: {
   jobs: Job[]; // offres publiques, pour les « Offres recommandées »
   go: (p: Page) => void;
+  identity: DashboardIdentity;
+  /** Candidatures fictives : réservées au compte de démonstration (jusqu'à B5). */
+  showDemoData: boolean;
   applicationStatus: string;
 }) {
   const [active, setActive] = useState("Aperçu");
-  const applications = candidateApplications.map((item, index) =>
-    index === 0 ? { ...item, status: applicationStatus } : item,
-  );
+  const applications = showDemoData
+    ? candidateApplications.map((item, index) =>
+        index === 0 ? { ...item, status: applicationStatus } : item,
+      )
+    : [];
   return (
-    <DashboardLayout area="candidate" go={go} active={active} setActive={setActive}>
+    <DashboardLayout
+      area="candidate"
+      identity={identity}
+      go={go}
+      active={active}
+      setActive={setActive}
+    >
       <DashboardTop
-        title={active === "Aperçu" ? "Bonjour, Mariama" : active}
+        title={active === "Aperçu" ? `Bonjour, ${identity.firstName}` : active}
         subtitle={
           active === "Aperçu"
             ? "Voici où en sont vos démarches cette semaine."
             : "Gérez vos informations et votre parcours."
         }
-        avatar="MD"
+        avatar={identity.initials}
       />
       <div className="dashboard-content">
         {active === "Aperçu" && (
           <>
             <div className="stats-grid">
-              <StatCard icon={FileText} value="3" label="Candidatures envoyées" tone="blue" />
+              <StatCard
+                icon={FileText}
+                value={String(applications.length)}
+                label="Candidatures envoyées"
+                tone="blue"
+              />
               <StatCard
                 icon={Eye}
                 value={String(
@@ -79,10 +98,10 @@ export function CandidateDashboard({
                 </div>
                 <div className="mt-6 flex items-center gap-3">
                   <span className="grid size-12 place-items-center rounded-full bg-blue-100 font-bold text-blue-700">
-                    MD
+                    {identity.initials}
                   </span>
                   <div>
-                    <p className="text-sm font-bold text-[#0c2340]">Mariama Diallo</p>
+                    <p className="text-sm font-bold text-[#0c2340]">{identity.name}</p>
                     <p className="text-xs text-slate-400">Marketing & communication</p>
                   </div>
                 </div>
@@ -108,7 +127,7 @@ export function CandidateDashboard({
             </div>
           </>
         )}
-        {active === "Mon profil" && <CandidateProfile />}
+        {active === "Mon profil" && <CandidateProfile fullName={identity.name} />}
         {active === "Mes candidatures" && (
           <div className="content-card overflow-hidden">
             <CardHeading title="Toutes mes candidatures" />

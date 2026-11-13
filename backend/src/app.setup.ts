@@ -1,4 +1,5 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 import { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from './config/env.validation.js';
 
@@ -24,6 +25,9 @@ export function configureApp(app: INestApplication): void {
       transform: true,
     }),
   );
+
+  // Lit les cookies reçus (cookie de rafraîchissement de session).
+  app.use(cookieParser());
 
   // Seules les adresses du frontend listées dans CORS_ORIGIN peuvent appeler l'API
   // depuis un navigateur. `credentials` prépare l'envoi du cookie de rafraîchissement (B3).

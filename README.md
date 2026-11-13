@@ -5,9 +5,10 @@ postulent, les entreprises publient leurs offres et suivent les candidatures, l'
 valide les entreprises.
 
 > **État du projet** : en développement. Les pages publiques (accueil, liste et détail des offres)
-> lisent les vraies données de PostgreSQL via l'API. Les espaces candidat, entreprise et
-> administration utilisent encore des données fictives ; ils seront branchés progressivement
-> (authentification, offres des entreprises, candidatures…).
+> lisent les vraies données de PostgreSQL via l'API. L'inscription, la connexion et l'accès aux
+> espaces candidat, entreprise et administration sont réels (sessions sécurisées). Le **contenu**
+> de ces espaces utilise encore des données fictives ; il sera branché progressivement (offres des
+> entreprises, candidatures, administration…).
 
 ## Sommaire
 
@@ -18,6 +19,8 @@ valide les entreprises.
 - [Docker et PostgreSQL](#docker-et-postgresql)
 - [Migrations Prisma](#migrations-prisma)
 - [Données de départ](#données-de-départ)
+- [Comptes de démonstration](#comptes-de-démonstration)
+- [Authentification et sécurité](#authentification-et-sécurité)
 - [Démarrer les serveurs](#démarrer-les-serveurs)
 - [Tests et vérifications](#tests-et-vérifications)
 - [Dépannage](#dépannage)
@@ -51,12 +54,17 @@ Le frontend et le backend sont **deux projets npm distincts**, chacun avec son
 
 ### API disponible
 
-| Route              | Description                                                                                         |
-| ------------------ | --------------------------------------------------------------------------------------------------- |
-| `GET /api/health`  | État de l'API et de la connexion à la base                                                          |
-| `GET /api/cities`  | Villes (ordre alphabétique)                                                                         |
-| `GET /api/domains` | Domaines professionnels (ordre alphabétique)                                                        |
-| `GET /api/offers`  | Offres publiques, filtrables par `city`, `domain`, `type` (`JOB` / `INTERNSHIP`) et `q` (recherche) |
+| Route                     | Description                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `GET /api/health`         | État de l'API et de la connexion à la base                                                          |
+| `GET /api/cities`         | Villes (ordre alphabétique)                                                                         |
+| `GET /api/domains`        | Domaines professionnels (ordre alphabétique)                                                        |
+| `GET /api/offers`         | Offres publiques, filtrables par `city`, `domain`, `type` (`JOB` / `INTERNSHIP`) et `q` (recherche) |
+| `POST /api/auth/register` | Inscription d'un candidat ou d'une entreprise (jamais d'administrateur)                             |
+| `POST /api/auth/login`    | Connexion (5 tentatives par minute et par adresse IP)                                               |
+| `POST /api/auth/refresh`  | Renouvelle la session à partir du cookie                                                            |
+| `POST /api/auth/logout`   | Déconnexion : révoque la session                                                                    |
+| `GET /api/auth/me`        | Utilisateur connecté (jeton d'accès obligatoire)                                                    |
 
 Une offre n'est publique que si elle est publiée, que sa date limite n'est pas dépassée (le
 jour même reste valable) et que son entreprise est validée.
@@ -92,8 +100,9 @@ npm --prefix backend install
 # 3. Créer les fichiers de configuration locaux (jamais versionnés)
 cp .env.example .env
 cp backend/.env.example backend/.env
-#    puis, dans backend/.env, remplacer les deux « change-me » par un même mot de passe
-#    (voir « Variables d'environnement » ci-dessous)
+#    puis, dans backend/.env, remplacer :
+#    - les deux « change-me » de la base par un même mot de passe ;
+#    - JWT_ACCESS_SECRET par un secret aléatoire (commande ci-dessous).
 
 # 4. Démarrer PostgreSQL (Docker Desktop doit être lancé)
 npm run db:up
@@ -109,10 +118,11 @@ npm run check
 
 > Sous Windows (PowerShell), `cp` fonctionne. Vous pouvez aussi utiliser `Copy-Item .env.example .env`.
 
-Pour générer un mot de passe solide pour la base :
+Pour générer un mot de passe solide pour la base, puis un secret pour `JWT_ACCESS_SECRET` :
 
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(24).toString('hex'))"
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
 ```
 
 ## Variables d'environnement
@@ -130,16 +140,19 @@ secret. Après une modification, redémarrez `npm run dev`.
 
 ### Backend : `backend/.env`
 
-| Variable            | Exemple                                                                        | Rôle                                                             |
-| ------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `NODE_ENV`          | `development`                                                                  | Mode d'exécution                                                 |
-| `PORT`              | `3001`                                                                         | Port de l'API                                                    |
-| `CORS_ORIGIN`       | `http://localhost:8443,http://localhost:5173`                                  | Adresses du frontend autorisées à appeler l'API (`*` est refusé) |
-| `POSTGRES_USER`     | `proavenir`                                                                    | Utilisateur créé dans PostgreSQL                                 |
-| `POSTGRES_PASSWORD` | _(secret)_                                                                     | Mot de passe de la base                                          |
-| `POSTGRES_DB`       | `proavenir`                                                                    | Nom de la base                                                   |
-| `POSTGRES_PORT`     | `5434`                                                                         | Port publié sur la machine                                       |
-| `DATABASE_URL`      | `postgresql://proavenir:<mot-de-passe>@127.0.0.1:5434/proavenir?schema=public` | Connexion utilisée par Prisma                                    |
+| Variable                 | Exemple                                                                        | Rôle                                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`               | `development`                                                                  | Mode d'exécution                                                                                               |
+| `PORT`                   | `3001`                                                                         | Port de l'API                                                                                                  |
+| `CORS_ORIGIN`            | `http://localhost:8443,http://localhost:5173`                                  | Adresses du frontend autorisées à appeler l'API (`*` est refusé)                                               |
+| `POSTGRES_USER`          | `proavenir`                                                                    | Utilisateur créé dans PostgreSQL                                                                               |
+| `POSTGRES_PASSWORD`      | _(secret)_                                                                     | Mot de passe de la base                                                                                        |
+| `POSTGRES_DB`            | `proavenir`                                                                    | Nom de la base                                                                                                 |
+| `POSTGRES_PORT`          | `5434`                                                                         | Port publié sur la machine                                                                                     |
+| `DATABASE_URL`           | `postgresql://proavenir:<mot-de-passe>@127.0.0.1:5434/proavenir?schema=public` | Connexion utilisée par Prisma                                                                                  |
+| `JWT_ACCESS_SECRET`      | _(secret, 32 caractères minimum)_                                              | Signature des jetons d'accès. « change-me » est refusé ; une valeur de démonstration est refusée en production |
+| `ACCESS_TOKEN_TTL`       | `15m`                                                                          | Durée de vie d'un jeton d'accès (entre `1m` et `1h`)                                                           |
+| `REFRESH_TOKEN_TTL_DAYS` | `30`                                                                           | Durée maximale d'une session « Se souvenir de moi » (1 à 90 jours)                                             |
 
 Le mot de passe doit être **identique** dans `POSTGRES_PASSWORD` et dans `DATABASE_URL`. Ces
 variables sont vérifiées au démarrage de l'API : une valeur manquante ou invalide l'empêche de
@@ -186,9 +199,45 @@ toute la base : ne l'utilisez pas.
 
 - **Relançable sans risque** : les identifiants sont fixes, la commande met à jour les mêmes
   lignes, sans doublon ni suppression.
-- **Aucun mot de passe** : les comptes de démonstration ne peuvent pas encore se connecter.
-  Leurs e-mails utilisent le domaine réservé `.test`. La connexion arrivera avec
-  l'authentification.
+- **Aucun mot de passe** : les comptes de démonstration ne peuvent pas se connecter tant qu'un
+  mot de passe ne leur a pas été attribué (voir ci-dessous). Leurs e-mails utilisent le domaine
+  réservé `.test`.
+
+## Comptes de démonstration
+
+Pour vous connecter avec un compte des données de départ, définissez d'abord son mot de passe.
+Il est demandé au clavier, **sans être affiché**, haché avec argon2id, et n'est écrit dans aucun
+fichier :
+
+```bash
+npm --prefix backend run db:set-password -- mariama.diallo@proavenir.test               # candidate
+npm --prefix backend run db:set-password -- recrutement.kamsar-solutions@proavenir.test # entreprise
+npm --prefix backend run db:set-password -- admin@proavenir.test                        # administrateur
+```
+
+La commande révoque aussi les sessions ouvertes du compte. C'est le **seul** moyen de donner un
+mot de passe à l'administrateur : l'inscription publique ne crée jamais de compte administrateur.
+
+En développement (`npm run dev`), les boutons « Accès rapide à la démonstration » de la page
+de connexion **préremplissent seulement l'e-mail** : le mot de passe reste obligatoire. Ils sont
+absents du build de production.
+
+## Authentification et sécurité
+
+| Élément                | Fonctionnement                                                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mots de passe          | Hachés avec **argon2id** (paramètres OWASP), 8 à 128 caractères, jamais renvoyés par l'API                                                                  |
+| Jeton d'accès          | JWT signé (HS256), valable 15 min, gardé **en mémoire** par le frontend (jamais dans `localStorage`)                                                        |
+| Session                | Cookie `proavenir_refresh` `httpOnly`, `SameSite=Strict`, `Secure` en production, limité à `/api/auth` ; seule son empreinte SHA-256 est stockée en base    |
+| « Se souvenir de moi » | Coché : session de 30 jours. Sinon : cookie de session, 24 h maximum côté serveur                                                                           |
+| Rotation               | Chaque renouvellement remplace le jeton (fin de session inchangée). La réutilisation d'un ancien jeton (vol probable) révoque toutes les sessions du compte |
+| CSRF                   | Cookie `SameSite=Strict` + en-tête obligatoire `X-ProAvenir-CSRF` + origine vérifiée (`CORS_ORIGIN`)                                                        |
+| Erreurs de connexion   | Message identique (« E-mail ou mot de passe incorrect. ») quelle que soit la cause                                                                          |
+| Force brute            | 5 tentatives de connexion par minute et par adresse IP (réponse 429)                                                                                        |
+| Accès aux routes       | Toutes les routes exigent une connexion, sauf celles marquées `@Public()`. Le compte et son rôle sont relus en base à chaque requête                        |
+
+Après une déconnexion, la session est révoquée immédiatement. Un jeton d'accès déjà émis
+reste techniquement valable jusqu'à son expiration (15 min au plus), mais le frontend l'oublie.
 
 ## Démarrer les serveurs
 
@@ -234,16 +283,21 @@ Pour arrêter : `Ctrl + C` dans chaque terminal. La base peut rester allumée.
 
 ## Dépannage
 
-| Symptôme                                                                      | Cause probable                                                | Solution                                                                              |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Page Offres : « Offres indisponibles » / « Impossible de joindre le serveur » | L'API n'est pas lancée, ou la base est arrêtée                | Lancer `npm run db:up` puis `npm run dev:api`, puis cliquer sur « Réessayer »         |
-| « L'adresse du serveur n'est pas configurée (VITE_API_URL manquante) »        | Le fichier `.env` racine est absent                           | `cp .env.example .env`, puis redémarrer `npm run dev`                                 |
-| Erreur CORS dans la console du navigateur                                     | L'adresse du frontend n'est pas dans `CORS_ORIGIN`            | L'ajouter dans `backend/.env`, puis redémarrer l'API                                  |
-| `EADDRINUSE` (3001) ou `Port 8443 is already in use`                          | Un ancien serveur tourne encore                               | Fermer l'autre terminal, ou trouver le processus : `netstat -ano \| findstr :3001`    |
-| `npm run db:up` échoue : « Cannot connect to the Docker daemon »              | Docker Desktop n'est pas démarré                              | Lancer Docker Desktop, attendre qu'il soit prêt, recommencer                          |
-| L'API ne démarre pas : erreur de connexion à PostgreSQL ou d'authentification | Base arrêtée, ou mots de passe différents dans `backend/.env` | `docker compose ps` dans `backend/` ; vérifier `POSTGRES_PASSWORD` et `DATABASE_URL`  |
-| Le port 5434 est déjà utilisé                                                 | Une autre base occupe ce port                                 | Changer `POSTGRES_PORT` **et** le port de `DATABASE_URL` dans `backend/.env`          |
-| `Cannot find module '…/generated/prisma/…'`                                   | Client Prisma pas encore généré                               | `npm --prefix backend run db:generate`                                                |
-| Les tests e2e échouent sur les nombres d'offres                               | Données de départ absentes ou modifiées                       | `npm --prefix backend run db:seed` (sans suppression)                                 |
-| Fichiers entièrement modifiés dans `git diff` sous Windows                    | Fins de ligne CRLF                                            | Le projet impose LF (`.gitattributes`) ; dans VS Code, choisir « LF » en bas à droite |
-| Avertissement `npm warn allow-scripts …`                                      | npm 11 bloque les scripts d'installation non approuvés        | Normal : seuls ceux de Prisma sont approuvés dans `backend/package.json`              |
+| Symptôme                                                                        | Cause probable                                                                                | Solution                                                                               |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Page Offres : « Offres indisponibles » / « Impossible de joindre le serveur »   | L'API n'est pas lancée, ou la base est arrêtée                                                | Lancer `npm run db:up` puis `npm run dev:api`, puis cliquer sur « Réessayer »          |
+| « L'adresse du serveur n'est pas configurée (VITE_API_URL manquante) »          | Le fichier `.env` racine est absent                                                           | `cp .env.example .env`, puis redémarrer `npm run dev`                                  |
+| Erreur CORS dans la console du navigateur                                       | L'adresse du frontend n'est pas dans `CORS_ORIGIN`                                            | L'ajouter dans `backend/.env`, puis redémarrer l'API                                   |
+| `EADDRINUSE` (3001) ou `Port 8443 is already in use`                            | Un ancien serveur tourne encore                                                               | Fermer l'autre terminal, ou trouver le processus : `netstat -ano \| findstr :3001`     |
+| `npm run db:up` échoue : « Cannot connect to the Docker daemon »                | Docker Desktop n'est pas démarré                                                              | Lancer Docker Desktop, attendre qu'il soit prêt, recommencer                           |
+| L'API ne démarre pas : erreur de connexion à PostgreSQL ou d'authentification   | Base arrêtée, ou mots de passe différents dans `backend/.env`                                 | `docker compose ps` dans `backend/` ; vérifier `POSTGRES_PASSWORD` et `DATABASE_URL`   |
+| Le port 5434 est déjà utilisé                                                   | Une autre base occupe ce port                                                                 | Changer `POSTGRES_PORT` **et** le port de `DATABASE_URL` dans `backend/.env`           |
+| `Cannot find module '…/generated/prisma/…'`                                     | Client Prisma pas encore généré                                                               | `npm --prefix backend run db:generate`                                                 |
+| Les tests e2e échouent sur les nombres d'offres                                 | Données de départ absentes ou modifiées                                                       | `npm --prefix backend run db:seed` (sans suppression)                                  |
+| Fichiers entièrement modifiés dans `git diff` sous Windows                      | Fins de ligne CRLF                                                                            | Le projet impose LF (`.gitattributes`) ; dans VS Code, choisir « LF » en bas à droite  |
+| Avertissement `npm warn allow-scripts …`                                        | npm 11 bloque les scripts d'installation non approuvés                                        | Normal : seuls ceux de Prisma et d'argon2 sont approuvés dans `backend/package.json`   |
+| L'API refuse de démarrer : « JWT_ACCESS_SECRET doit être un secret aléatoire… » | Secret absent, trop court ou laissé à « change-me »                                           | Générer un secret (voir « Installation depuis zéro ») et le placer dans `backend/.env` |
+| « E-mail ou mot de passe incorrect » avec un compte de démonstration            | Ce compte n'a pas encore de mot de passe                                                      | `npm --prefix backend run db:set-password -- <e-mail>`                                 |
+| « Trop de tentatives. Patientez une minute… »                                   | Plus de 5 tentatives de connexion en une minute                                               | Attendre une minute                                                                    |
+| Déconnecté après chaque rechargement de la page                                 | Le cookie de session n'est pas envoyé : frontend ouvert via une autre adresse que `localhost` | Ouvrir http://localhost:8443 (et non 127.0.0.1 ou l'adresse réseau)                    |
+| « Requête refusée (protection CSRF) »                                           | Adresse du frontend absente de `CORS_ORIGIN`                                                  | L'ajouter dans `backend/.env`, puis redémarrer l'API                                   |

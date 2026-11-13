@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,7 +9,10 @@ import {
   UserRound,
 } from "lucide-react";
 import type { Page } from "../types/navigation";
+import { ROLE_HOME } from "../types/auth";
 import { Logo } from "../components/layout/Logo";
+import { useAuth } from "../features/auth/authContext";
+import { DEMO_ACCOUNTS } from "../features/auth/demoAccounts";
 
 export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: Page) => void }) {
   const register = mode === "register";
@@ -18,14 +21,61 @@ export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: 
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [authError, setAuthError] = useState("");
-  const submit = (e: FormEvent) => {
+  const [demoHint, setDemoHint] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const auth = useAuth();
+  // Champs lus au moment de l'envoi (références : le HTML du formulaire reste identique).
+  const fullNameInput = useRef<HTMLInputElement>(null);
+  const companyNameInput = useRef<HTMLInputElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
+  const rememberMeInput = useRef<HTMLInputElement>(null);
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (register && password !== confirmation) {
       setAuthError("Les deux mots de passe doivent être identiques.");
       return;
     }
     setAuthError("");
-    go(role === "candidate" ? "candidate" : "company");
+    setSubmitting(true);
+    try {
+      const email = emailInput.current?.value ?? "";
+      const user = register
+        ? await auth.register({
+            role: role === "candidate" ? "CANDIDATE" : "COMPANY",
+            fullName: fullNameInput.current?.value ?? "",
+            companyName: role === "company" ? companyNameInput.current?.value : undefined,
+            email,
+            password,
+          })
+        : await auth.login({
+            email,
+            password,
+            rememberMe: rememberMeInput.current?.checked ?? false,
+          });
+      // Chaque rôle arrive dans son espace (le rôle vient du serveur, pas du choix affiché).
+      go(ROLE_HOME[user.role]);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Une erreur inattendue est survenue.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /**
+   * Développement uniquement : préremplit l'e-mail d'un compte de démonstration.
+   * Aucun contournement : le mot de passe (défini avec npm run db:set-password)
+   * reste obligatoire et la connexion passe par l'API.
+   */
+  const prefillDemo = (account: (typeof DEMO_ACCOUNTS)[number]) => {
+    setRole(account.role === "COMPANY" ? "company" : "candidate");
+    if (emailInput.current) emailInput.current.value = account.email;
+    setAuthError("");
+    setDemoHint(
+      `Compte de démonstration « ${account.label} » : saisissez son mot de passe (défini avec npm run db:set-password).`,
+    );
+    passwordInput.current?.focus();
   };
   return (
     <main className="auth-page">
@@ -95,6 +145,7 @@ export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: 
               <label className="form-label">
                 Nom complet
                 <input
+                  ref={fullNameInput}
                   required
                   placeholder={role === "candidate" ? "Ex. Mariama Diallo" : "Ex. Ibrahima Camara"}
                 />
@@ -103,16 +154,17 @@ export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: 
             {register && role === "company" && (
               <label className="form-label">
                 Nom de l’entreprise
-                <input required placeholder="Nom de votre organisation" />
+                <input ref={companyNameInput} required placeholder="Nom de votre organisation" />
               </label>
             )}
             <label className="form-label">
               Adresse e-mail
-              <input required type="email" placeholder="vous@exemple.com" />
+              <input ref={emailInput} required type="email" placeholder="vous@exemple.com" />
             </label>
             <label className="form-label">
               Mot de passe
               <input
+                ref={passwordInput}
                 required
                 minLength={8}
                 type="password"
@@ -134,6 +186,11 @@ export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: 
                 />
               </label>
             )}
+            {demoHint && !authError && (
+              <p className="rounded-xl bg-slate-100 px-3 py-2.5 text-xs leading-5 text-slate-600">
+                {demoHint}
+              </p>
+            )}
             {authError && (
               <p role="alert" className="rounded-xl bg-red-50 px-3 py-2.5 text-xs text-red-700">
                 {authError}
@@ -142,7 +199,7 @@ export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: 
             {!register && (
               <div className="flex justify-between text-xs">
                 <label className="flex gap-2 text-slate-500">
-                  <input type="checkbox" /> Se souvenir de moi
+                  <input ref={rememberMeInput} type="checkbox" /> Se souvenir de moi
                 </label>
                 <button
                   type="button"
@@ -154,25 +211,27 @@ export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: 
               </div>
             )}
             {resetRequested && (
-              <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-xs leading-5 text-emerald-700">
-                Un lien de réinitialisation fictif a été envoyé à l’adresse indiquée.
+              <p className="rounded-xl bg-slate-100 px-3 py-2.5 text-xs leading-5 text-slate-600">
+                La réinitialisation du mot de passe n’est pas encore disponible. Aucun e-mail n’a
+                été envoyé. Contactez l’administrateur de ProAvenir.
               </p>
             )}
-            <button className="btn-primary w-full py-3.5">
+            <button className="btn-primary w-full py-3.5" disabled={submitting}>
               {register ? "Créer mon compte" : "Se connecter"} <ArrowRight size={17} />
             </button>
           </form>
-          {!register && (
+          {/* Développement uniquement : retiré du build de production (import.meta.env.DEV). */}
+          {import.meta.env.DEV && !register && (
             <div className="demo-access">
               <p>Accès rapide à la démonstration</p>
               <div>
-                <button onClick={() => go("candidate")}>
+                <button onClick={() => prefillDemo(DEMO_ACCOUNTS[0])}>
                   <UserRound size={14} /> Candidat
                 </button>
-                <button onClick={() => go("company")}>
+                <button onClick={() => prefillDemo(DEMO_ACCOUNTS[1])}>
                   <Building2 size={14} /> Entreprise
                 </button>
-                <button onClick={() => go("admin")}>
+                <button onClick={() => prefillDemo(DEMO_ACCOUNTS[2])}>
                   <ShieldCheck size={14} /> Admin
                 </button>
               </div>

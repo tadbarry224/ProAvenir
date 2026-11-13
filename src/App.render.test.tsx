@@ -71,7 +71,7 @@ describe("Rendu de l'espace candidat", () => {
     ["Mon profil", "candidat-profil"],
     ["Mes candidatures", "candidat-candidatures"],
   ])("onglet %s", async (tab, name) => {
-    const { container } = await renderApp();
+    const { container } = await renderApp({ as: "CANDIDATE" });
     await goTo("Espace candidat");
     openTab(tab);
     await expectScreen(container, name);
@@ -87,14 +87,14 @@ describe("Rendu de l'espace entreprise", () => {
     ["Mes offres", "entreprise-offres"],
     ["Candidatures", "entreprise-candidatures"],
   ])("onglet %s", async (tab, name) => {
-    const { container } = await renderApp();
+    const { container } = await renderApp({ as: "COMPANY" });
     await goTo("Espace entreprise");
     openTab(tab);
     await expectScreen(container, name);
   });
 
   it("fenêtre de publication d'une offre", async () => {
-    const { container } = await renderApp();
+    const { container } = await renderApp({ as: "COMPANY" });
     await goTo("Espace entreprise");
     fireEvent.click(screen.getAllByRole("button", { name: "Publier une offre" })[0]);
     await expectScreen(container, "entreprise-publication");
@@ -109,7 +109,7 @@ describe("Rendu de l'administration", () => {
     ["Entreprises", "admin-entreprises"],
     ["Modération", "admin-moderation"],
   ])("onglet %s", async (tab, name) => {
-    const { container } = await renderApp();
+    const { container } = await renderApp({ as: "ADMIN" });
     await goTo("Administration");
     openTab(tab);
     await expectScreen(container, name);

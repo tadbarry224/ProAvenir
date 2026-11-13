@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Building2, FileCheck2, UsersRound } from "lucide-react";
 import type { Page } from "../../types/navigation";
+import type { DashboardIdentity } from "../../types/auth";
 import type { ModeratedOffer, PendingCompany } from "../../types/admin";
 import { initialModeratedOffers, initialPendingCompanies } from "../../data/mockAdmin";
 import { StatCard } from "../../components/ui/StatCard";
@@ -9,7 +10,13 @@ import { DashboardTop } from "../../components/layout/DashboardTop";
 import { AdminCompanies } from "./AdminCompanies";
 import { AdminOffers } from "./AdminOffers";
 
-export function AdminDashboard({ go }: { go: (p: Page) => void }) {
+export function AdminDashboard({
+  go,
+  identity,
+}: {
+  go: (p: Page) => void;
+  identity: DashboardIdentity;
+}) {
   const [active, setActive] = useState("Vue générale");
   const [companies, setCompanies] = useState<PendingCompany[]>(initialPendingCompanies);
   const [offers, setOffers] = useState<ModeratedOffer[]>(initialModeratedOffers);
@@ -18,7 +25,7 @@ export function AdminDashboard({ go }: { go: (p: Page) => void }) {
   const moderate = (title: string, status: string) =>
     setOffers((x) => x.map((o) => (o.title === title ? { ...o, status } : o)));
   return (
-    <DashboardLayout area="admin" go={go} active={active} setActive={setActive}>
+    <DashboardLayout area="admin" identity={identity} go={go} active={active} setActive={setActive}>
       <DashboardTop
         title={active === "Vue générale" ? "Tableau de bord administrateur" : active}
         subtitle="Contrôle et qualité de la plateforme"

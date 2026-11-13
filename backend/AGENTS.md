@@ -19,6 +19,9 @@ REST API for ProAvenir. Read `README.md` for setup. The frontend lives at the re
 - `src/config/env.validation.ts` - validates `.env` at startup
 - `src/prisma/` - global `PrismaService`
 - `src/health/` - `GET /api/health` (200 when PostgreSQL answers, 503 otherwise, no technical details in the response)
+- `src/auth/` - authentication (B3): `auth.controller.ts` (`/api/auth/register|login|refresh|logout|me`), `auth.service.ts` (argon2id, refresh-token rotation with reuse detection, 30 s grace for concurrent tabs), `auth.guards.ts` (global `JwtAuthGuard` + `RolesGuard`, `CsrfGuard` on cookie routes), `auth.decorators.ts` (`@Public()`, `@Roles()`, `@CurrentUser()`), `password.ts` (shared with `prisma/set-password.ts`), `refresh-cookie.ts`
+- `src/common/clock.service.ts` - today's date in Africa/Conakry (override it in tests)
+- `src/reference/`, `src/offers/` - public `GET /api/cities|domains|offers`
 - `prisma/schema.prisma` - data model (User, CandidateProfile, Company, CompanyMember, City, Domain, Offer, Application, RefreshToken). Extra CHECK constraints live in the migration SQL (Prisma ignores them, keep them when editing).
 - `prisma/migrations/` - versioned SQL; never edit an applied migration. Create new ones with `prisma migrate dev --create-only`, review, then `npm run db:migrate`.
 - `prisma/seed.ts` + `seed-data.ts` - idempotent demo data (fixed UUIDs, upserts, no deletes, no passwords: `passwordHash` is null). Run `npm run db:seed`.
@@ -28,5 +31,8 @@ REST API for ProAvenir. Read `README.md` for setup. The frontend lives at the re
 
 - Never commit secrets: `.env` is git-ignored; document every variable in `.env.example`.
 - All authorization is enforced server-side (roles + ownership checks), never trust the frontend.
+- Routes are **closed by default**: the global `JwtAuthGuard` requires a valid access token unless the controller or handler has `@Public()`. Use `@Roles(...)` for role checks and verify resource ownership in services (e.g. a company only edits its own offers).
+- Never return `passwordHash`, token hashes or internal data: use explicit Prisma `select`s.
+- e2e tests that create data use dedicated prefixes (`e2e-auth-…@proavenir.test`, `[e2e-auth]`, test UUIDs `9…`) and delete only those rows; reset the throttler storage between tests (see `test/auth.e2e-spec.ts`).
 - Never run destructive database commands (`prisma migrate reset`, `db push --force-reset`, `docker compose down -v`) without explicit user approval.
 - Before finishing a change: `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run test:e2e` (needs the database running), `npm run build`.

@@ -258,3 +258,73 @@ describe('Relations et suppressions', () => {
     expect(application.candidate.user.fullName).toBe('Mariama Diallo');
   });
 });
+
+describe('Détails du contrat des offres', () => {
+  it('les données de départ reprennent les libellés du frontend sans valeur inventée', async () => {
+    const byId = async (n: number) =>
+      prisma.offer.findUniqueOrThrow({
+        where: { id: offerId(n) },
+        select: { contractType: true, workSchedule: true, duration: true },
+      });
+    // « CDI · Temps plein »
+    expect(await byId(2)).toEqual({
+      contractType: 'CDI',
+      workSchedule: 'FULL_TIME',
+      duration: null,
+    });
+    // « Stage · 6 mois » : le rythme de travail n'est pas précisé, il reste vide.
+    expect(await byId(1)).toEqual({
+      contractType: 'INTERNSHIP',
+      workSchedule: null,
+      duration: '6 mois',
+    });
+    // « CDD · 12 mois »
+    expect(await byId(3)).toEqual({
+      contractType: 'CDD',
+      workSchedule: null,
+      duration: '12 mois',
+    });
+  });
+
+  it('refuse un CDI pour un stage et une convention de stage pour un emploi', async () => {
+    await expect(
+      prisma.offer.create({
+        data: draftOffer({ type: 'INTERNSHIP', contractType: 'CDI' }),
+      }),
+    ).rejects.toThrow(/Offer_contract_matches_type_check/);
+    await expect(
+      prisma.offer.create({
+        data: draftOffer({ type: 'JOB', contractType: 'INTERNSHIP' }),
+      }),
+    ).rejects.toThrow(/Offer_contract_matches_type_check/);
+  });
+
+  it('refuse une durée pour un CDI', async () => {
+    await expect(
+      prisma.offer.create({
+        data: draftOffer({ contractType: 'CDI', duration: '6 mois' }),
+      }),
+    ).rejects.toThrow(/Offer_cdi_without_duration_check/);
+  });
+
+  it('accepte « OTHER » pour les deux types et une offre sans détail de contrat', async () => {
+    await inRolledBackTransaction(async (tx) => {
+      await tx.offer.create({
+        data: draftOffer({ type: 'JOB', contractType: 'OTHER' }),
+      });
+      await tx.offer.create({
+        data: draftOffer({
+          type: 'INTERNSHIP',
+          contractType: 'OTHER',
+          workSchedule: 'PART_TIME',
+        }),
+      });
+      const bare = await tx.offer.create({ data: draftOffer() });
+      expect(bare).toMatchObject({
+        contractType: null,
+        workSchedule: null,
+        duration: null,
+      });
+    });
+  });
+});

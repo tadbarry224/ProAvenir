@@ -5,7 +5,7 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import type { Company, Offer } from "../../types/offer";
-import { toJobView } from "./toJobView";
+import { contractLabel, toJobView } from "./toJobView";
 
 const company: Company = { id: 4, name: "Fouta Conseil", initials: "FC", logoColor: "violet" };
 
@@ -32,15 +32,52 @@ describe("toJobView", () => {
     assert.equal(job.initials, "FC");
     assert.equal(job.color, "violet");
     assert.equal(job.type, "Stage");
-    assert.equal(job.contract, "Stage"); // pas encore de champ contrat dans le formulaire
+    assert.equal(job.contract, "Stage"); // sans détail de contrat : le type seul
     assert.equal(job.posted, "Publiée le 28 nov. 2026");
     assert.equal(job.deadline, "15 janv. 2027");
     assert.deepEqual(job.skills, ["Comptabilité", "Excel"]);
   });
 
-  it("utilise le libellé de contrat s'il existe (offres fictives)", () => {
-    const job = toJobView({ ...offer, contract: "Stage · 3 mois" }, company);
+  it("compose le libellé de contrat à partir des champs structurés", () => {
+    const job = toJobView({ ...offer, contractType: "INTERNSHIP", duration: "3 mois" }, company);
     assert.equal(job.contract, "Stage · 3 mois");
+  });
+
+  it("contractLabel reproduit les libellés des offres fictives", () => {
+    const job = { type: "JOB" as const };
+    assert.equal(
+      contractLabel({ ...job, contractType: "CDI", workSchedule: "FULL_TIME" }),
+      "CDI · Temps plein",
+    );
+    assert.equal(
+      contractLabel({ ...job, contractType: "CDD", duration: "12 mois" }),
+      "CDD · 12 mois",
+    );
+    assert.equal(
+      contractLabel({ type: "INTERNSHIP", contractType: "INTERNSHIP", duration: "6 mois" }),
+      "Stage · 6 mois",
+    );
+  });
+
+  it("contractLabel gère les autres combinaisons", () => {
+    assert.equal(contractLabel({ type: "JOB" }), "Emploi");
+    assert.equal(
+      contractLabel({
+        type: "JOB",
+        contractType: "CDD",
+        duration: "6 mois",
+        workSchedule: "PART_TIME",
+      }),
+      "CDD · 6 mois · Temps partiel",
+    );
+    assert.equal(
+      contractLabel({ type: "JOB", contractType: "OTHER", duration: "  " }),
+      "Autre contrat",
+    );
+    assert.equal(
+      contractLabel({ type: "INTERNSHIP", workSchedule: "FULL_TIME" }),
+      "Stage · Temps plein",
+    );
   });
 
   it("reste utilisable si l'entreprise est inconnue", () => {

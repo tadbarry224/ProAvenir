@@ -19,6 +19,25 @@ export const OFFER_TYPE_LABELS = {
 } as const satisfies Record<OfferType, string>;
 export type OfferTypeLabel = (typeof OFFER_TYPE_LABELS)[OfferType]; // "Emploi" | "Stage"
 
+// Détails du contrat (facultatifs), identiques aux énumérations Prisma du backend.
+export const CONTRACT_TYPES = ["CDI", "CDD", "INTERNSHIP", "OTHER"] as const;
+export type ContractType = (typeof CONTRACT_TYPES)[number];
+
+export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
+  CDI: "CDI",
+  CDD: "CDD",
+  INTERNSHIP: "Stage",
+  OTHER: "Autre contrat",
+};
+
+export const WORK_SCHEDULES = ["FULL_TIME", "PART_TIME"] as const;
+export type WorkSchedule = (typeof WORK_SCHEDULES)[number];
+
+export const WORK_SCHEDULE_LABELS: Record<WorkSchedule, string> = {
+  FULL_TIME: "Temps plein",
+  PART_TIME: "Temps partiel",
+};
+
 // Listes uniques, utilisées à la fois par le formulaire de publication et par les filtres publics.
 export const OFFER_CITIES = ["Conakry", "Kindia", "Labé", "Boké"] as const;
 export type OfferCity = (typeof OFFER_CITIES)[number];
@@ -97,9 +116,11 @@ export type Offer = OfferInput & {
   status: OfferStatus;
   createdAt: string; // date ISO complète
   publishedAt: string | null; // date de première publication, null pour un brouillon jamais publié
-  /** Libellé de contrat des offres fictives (« CDI · Temps plein »). Sera remplacé
-   *  par de vrais champs « type de contrat » et « durée » lors d'une étape ultérieure. */
-  contract?: string;
+  /** Détails du contrat, tous facultatifs (pas encore saisis dans le formulaire de
+   *  publication). Affichés par toJobView : « CDI · Temps plein », « Stage · 6 mois ». */
+  contractType?: ContractType | null;
+  workSchedule?: WorkSchedule | null;
+  duration?: string | null; // « 3 mois », « 12 mois »
   featured?: boolean; // badge « À la une »
 };
 

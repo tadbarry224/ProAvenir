@@ -6,7 +6,31 @@
  * des offres, il suffira de les passer dans cette même fonction.
  */
 import { formatShortDate } from "../../lib/dates";
-import { OFFER_TYPE_LABELS, type Company, type Job, type Offer } from "../../types/offer";
+import {
+  CONTRACT_TYPE_LABELS,
+  OFFER_TYPE_LABELS,
+  WORK_SCHEDULE_LABELS,
+  type Company,
+  type Job,
+  type Offer,
+} from "../../types/offer";
+
+/**
+ * Libellé du contrat affiché sur les cartes et le détail d'une offre :
+ * « CDI · Temps plein », « Stage · 6 mois », « CDD · 6 mois · Temps partiel ».
+ * Sans détail de contrat, on affiche le type seul (« Emploi », « Stage »).
+ * JobCard n'affiche que la première partie (« CDI », « Stage »).
+ */
+export function contractLabel(
+  offer: Pick<Offer, "type" | "contractType" | "workSchedule" | "duration">,
+): string {
+  const parts = [
+    offer.contractType ? CONTRACT_TYPE_LABELS[offer.contractType] : OFFER_TYPE_LABELS[offer.type],
+    offer.duration?.trim() || null,
+    offer.workSchedule ? WORK_SCHEDULE_LABELS[offer.workSchedule] : null,
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
 
 /** Initiales de secours si l'entreprise est inconnue : « Fouta Conseil » → « FC ». */
 function initialsOf(name: string): string {
@@ -29,8 +53,7 @@ export function toJobView(offer: Offer, company: Company | undefined): Job {
     city: offer.city,
     domain: offer.domain,
     type: typeLabel,
-    // Tant que le formulaire n'a pas de champ contrat/durée, on affiche le type seul.
-    contract: offer.contract ?? typeLabel,
+    contract: contractLabel(offer),
     posted: `Publiée le ${formatShortDate(offer.publishedAt ?? offer.createdAt)}`,
     deadline: offer.deadline ? formatShortDate(offer.deadline) : "",
     description: offer.description,

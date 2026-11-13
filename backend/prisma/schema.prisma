@@ -48,6 +48,20 @@ enum OfferType {
   INTERNSHIP // Stage
 }
 
+/// Nature du contrat (facultative). Cohérence avec `type` vérifiée par une contrainte
+/// CHECK : CDI/CDD pour un emploi, INTERNSHIP pour un stage, OTHER pour les deux.
+enum ContractType {
+  CDI
+  CDD
+  INTERNSHIP // convention de stage
+  OTHER // autre forme (alternance, mission, bénévolat…)
+}
+
+enum WorkSchedule {
+  FULL_TIME // Temps plein
+  PART_TIME // Temps partiel
+}
+
 enum OfferStatus {
   DRAFT // brouillon : jamais visible publiquement
   PUBLISHED // publiée : visible si la date limite n'est pas dépassée
@@ -179,6 +193,11 @@ model Offer {
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
   title        String        @db.VarChar(120)
   type         OfferType
+  /// Détails du contrat, tous facultatifs (affichés « CDI · Temps plein », « Stage · 6 mois »).
+  contractType ContractType?
+  workSchedule WorkSchedule?
+  /// Durée en texte libre (« 3 mois », « 12 mois ») ; jamais pour un CDI (CHECK).
+  duration     String?       @db.VarChar(50)
   cityId       String
   city         City          @relation(fields: [cityId], references: [id])
   domainId     String

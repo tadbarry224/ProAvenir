@@ -4,10 +4,8 @@
  * Deux modes :
  * - "draft"   (brouillon)   : on accepte une offre incomplète, seul le titre est exigé.
  * - "publish" (publication) : tous les champs obligatoires doivent être valides.
- *
- * Remarque : l'extension ".ts" dans les imports permet à Node d'exécuter ce fichier
- * directement pour les tests (option `allowImportingTsExtensions` du tsconfig).
  */
+import { isValidIsoDate, todayIsoDate } from "../../lib/dates.ts";
 import {
   OFFER_CITIES,
   OFFER_DOMAINS,
@@ -39,25 +37,6 @@ export const OFFER_RULES = {
   skillsMax: 10,
   skillMaxLength: 40,
 } as const;
-
-/**
- * Date du jour au format "AAAA-MM-JJ", dans le fuseau horaire de l'utilisateur.
- * (On n'utilise pas `toISOString()`, qui donne la date en UTC et peut décaler d'un jour.)
- */
-export function todayIsoDate(now: Date = new Date()): string {
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/** Vérifie qu'un texte est une vraie date "AAAA-MM-JJ" (refuse par exemple 2027-02-30). */
-export function isValidIsoDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
-}
 
 /**
  * Transforme "Excel, communication, excel" en ["Excel", "communication"] :

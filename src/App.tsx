@@ -44,18 +44,21 @@ import {
   type OfferInput,
   type OfferStatus,
 } from "./types/offer";
+import type { Page } from "./types/navigation";
+import type { CandidateApplication, RecruitApplication } from "./types/application";
+import type { ModeratedOffer, PendingCompany } from "./types/admin";
 import {
-  todayIsoDate,
   validateOffer,
   type OfferErrors,
   type ValidationMode,
 } from "./features/offers/validateOffer";
 import { getDisplayStatus, isPubliclyVisible } from "./features/offers/offerRules";
-import { formatShortDate, toJobView } from "./features/offers/toJobView";
+import { toJobView } from "./features/offers/toJobView";
 import { useOffers } from "./features/offers/useOffers";
+import { formatShortDate, todayIsoDate } from "./lib/dates";
 import { DEMO_COMPANY_ID, findCompany } from "./data/mockCompanies";
-
-type Page = "home" | "jobs" | "job" | "login" | "register" | "candidate" | "company" | "admin";
+import { candidateApplications, initialRecruitApplications } from "./data/mockApplications";
+import { initialModeratedOffers, initialPendingCompanies } from "./data/mockAdmin";
 
 const statusStyle: Record<string, string> = {
   Envoyée: "bg-blue-50 text-blue-700",
@@ -1000,27 +1003,6 @@ function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: Page) =
   );
 }
 
-const candidateApplications = [
-  {
-    title: "Assistant·e marketing digital",
-    company: "Kamsar Solutions",
-    date: "12 déc. 2026",
-    status: "En examen",
-  },
-  {
-    title: "Développeur·se web junior",
-    company: "Nimba Digital",
-    date: "08 déc. 2026",
-    status: "Présélectionnée",
-  },
-  {
-    title: "Chargé·e de clientèle",
-    company: "Conakry Services",
-    date: "01 déc. 2026",
-    status: "Envoyée",
-  },
-];
-
 function DashboardLayout({
   area,
   go,
@@ -1386,7 +1368,7 @@ function CardHeading({
   );
 }
 
-function ApplicationTable({ items }: { items: typeof candidateApplications }) {
+function ApplicationTable({ items }: { items: CandidateApplication[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="data-table">
@@ -1433,38 +1415,6 @@ function MiniJob({ job, go }: { job: Job; go: () => void }) {
     </button>
   );
 }
-
-type RecruitApplication = {
-  name: string;
-  role: string;
-  date: string;
-  status: string;
-  initials: string;
-};
-
-const initialRecruitApplications: RecruitApplication[] = [
-  {
-    name: "Mariama Diallo",
-    role: "Assistant·e marketing digital",
-    date: "12 déc. 2026",
-    status: "En examen",
-    initials: "MD",
-  },
-  {
-    name: "Abdoulaye Bah",
-    role: "Assistant·e marketing digital",
-    date: "11 déc. 2026",
-    status: "Envoyée",
-    initials: "AB",
-  },
-  {
-    name: "Fatoumata Camara",
-    role: "Commercial·e terrain",
-    date: "09 déc. 2026",
-    status: "Présélectionnée",
-    initials: "FC",
-  },
-];
 
 /** Couleur de la pastille de statut dans « Mes offres » (classes déjà utilisées dans le design). */
 const offerStatusStyle: Record<ReturnType<typeof getDisplayStatus>, string> = {
@@ -1986,43 +1936,8 @@ function PublishModal({
 
 function AdminDashboard({ go }: { go: (p: Page) => void }) {
   const [active, setActive] = useState("Vue générale");
-  const [companies, setCompanies] = useState([
-    {
-      name: "Horoya Conseil",
-      sector: "Conseil",
-      city: "Conakry",
-      date: "15 déc. 2026",
-      status: "En attente",
-    },
-    {
-      name: "Kindia Agro Services",
-      sector: "Agriculture",
-      city: "Kindia",
-      date: "14 déc. 2026",
-      status: "En attente",
-    },
-    {
-      name: "Boké Transit",
-      sector: "Logistique",
-      city: "Boké",
-      date: "12 déc. 2026",
-      status: "En attente",
-    },
-  ]);
-  const [offers, setOffers] = useState([
-    {
-      title: "Agent commercial polyvalent",
-      company: "Conakry Plus",
-      reason: "Informations incomplètes",
-      status: "À examiner",
-    },
-    {
-      title: "Assistant de direction",
-      company: "Dabola Services",
-      reason: "Signalée par 2 utilisateurs",
-      status: "À examiner",
-    },
-  ]);
+  const [companies, setCompanies] = useState<PendingCompany[]>(initialPendingCompanies);
+  const [offers, setOffers] = useState<ModeratedOffer[]>(initialModeratedOffers);
   const verify = (name: string, status: string) =>
     setCompanies((x) => x.map((c) => (c.name === name ? { ...c, status } : c)));
   const moderate = (title: string, status: string) =>
@@ -2070,7 +1985,7 @@ function AdminCompanies({
   verify,
   compact,
 }: {
-  companies: { name: string; sector: string; city: string; date: string; status: string }[];
+  companies: PendingCompany[];
   verify: (n: string, s: string) => void;
   compact?: boolean;
 }) {
@@ -2160,7 +2075,7 @@ function AdminOffers({
   moderate,
   compact,
 }: {
-  offers: { title: string; company: string; reason: string; status: string }[];
+  offers: ModeratedOffer[];
   moderate: (t: string, s: string) => void;
   compact?: boolean;
 }) {

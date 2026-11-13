@@ -1,0 +1,14 @@
+// Schéma de la base de données ProAvenir.
+//
+// Phase B0 : aucun modèle. Les tables (User, Company, Offer, Application…)
+// seront ajoutées en phase B1 avec la première migration.
+
+generator client {
+  provider = "prisma-client"
+  // Le client est généré dans le code source (ignoré par Git) : `npx prisma generate`
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

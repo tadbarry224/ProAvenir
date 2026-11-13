@@ -28,6 +28,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `vite.config.ts` - Vite configuration with React, Tailwind CSS v4, and Figma Make plugins plus the `@` alias for `src`
 - `vitest.config.ts` - Test configuration (kept separate from the Figma Make plugins)
 - `.mise.toml` - Toolchain versions for Node.js and pnpm (the project itself uses **npm** and `package-lock.json`)
+- `backend/` - NestJS + Prisma + PostgreSQL API, a separate npm project with its own tooling; see `backend/AGENTS.md` and `backend/README.md`. Excluded from Tailwind scanning (`@source not` in `src/index.css`) and from the root formatter (`.prettierignore`).
 
 ### Conventions
 

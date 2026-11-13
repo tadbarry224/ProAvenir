@@ -1,5 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap");
 @import "tailwindcss";
+/* Le code du backend ne doit pas influencer le CSS du frontend. */
+@source not "../backend";
 
 @theme {
   --font-sans: "DM Sans", sans-serif;

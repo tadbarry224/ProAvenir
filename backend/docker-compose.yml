@@ -1,0 +1,33 @@
+# Base de données PostgreSQL pour le développement local de ProAvenir.
+#
+# Démarrer :  docker compose up -d      (depuis le dossier backend/)
+# Arrêter  :  docker compose stop       (les données sont conservées)
+# État     :  docker compose ps
+#
+# Les identifiants sont lus dans backend/.env (jamais versionné).
+# Le port est publié uniquement sur 127.0.0.1 : la base n'est pas accessible
+# depuis le réseau local.
+name: proavenir
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: proavenir-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant dans .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant dans .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      # Volume nommé : les données survivent à l'arrêt et à la recréation du conteneur.
+      - proavenir-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  proavenir-pgdata:

@@ -29,7 +29,9 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `package.json` - Project dependencies and the Vite build, development, preview, test, and formatting scripts
 - `vite.config.ts` - Vite configuration with React, Tailwind CSS v4, and Figma Make plugins plus the `@` alias for `src`
 - `vitest.config.ts` - Test configuration (kept separate from the Figma Make plugins)
-- `.mise.toml` - Toolchain versions for Node.js and pnpm (the project itself uses **npm** and `package-lock.json`)
+- `.mise.toml` - Toolchain version (Node.js 24). The project uses **npm** and `package-lock.json` (no pnpm); `engines` in both `package.json` files requires Node ^24.15 and npm >=11
+- `README.md` - Setup from scratch, environment variables, database, servers, checks, troubleshooting (French)
+- `.vscode/` - Shared editor settings (LF line endings, project TypeScript, Tailwind CSS) and recommended extensions
 - `backend/` - NestJS + Prisma + PostgreSQL API, a separate npm project with its own tooling; see `backend/AGENTS.md` and `backend/README.md`. Excluded from Tailwind scanning (`@source not` in `src/index.css`) and from the root formatter (`.prettierignore`).
 
 ### Conventions
@@ -39,6 +41,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 - Imports without file extensions.
 
 ## Testing
+
+- `npm run check` runs every check before a commit: `check:front` (oxfmt, `tsc --noUnusedLocals`, tests, build) then `check:api` (backend Prettier, tsc, oxlint, unit + e2e tests, build; PostgreSQL must be running). Root `npm run db:up` and `npm run dev:api` start the database and the API.
 
 - `npm test` runs Vitest once; `npm run test:watch` re-runs on save. Both go through `scripts/vitest.mjs`, which works around a Windows issue (lowercase drive letter `c:\` makes Vitest load twice).
 - `src/App.render.test.tsx` compares each screen with the HTML snapshots in `src/__snapshots__/pages/`. Any rendering change fails the test; update snapshots with `npm test -- -u` only for intended design changes, then review `git diff`.

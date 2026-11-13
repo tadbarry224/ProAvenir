@@ -4,8 +4,10 @@ API REST de ProAvenir : NestJS 12, PostgreSQL 17 (Docker) et Prisma 7.
 
 ## Prérequis
 
-- Node.js 22.12+ ou 24
+- Node.js 24.15+ et npm 11+ (voir `engines` dans `package.json`)
 - Docker Desktop (démarré)
+
+Pour l'installation complète du projet (frontend + backend), voir le [README principal](../README.md).
 
 ## Première installation
 
@@ -14,7 +16,7 @@ Toutes les commandes se lancent depuis le dossier `backend/`.
 ```bash
 npm install                 # installe les dépendances
 cp .env.example .env        # crée la configuration locale, puis remplacer les « change-me »
-docker compose up -d        # démarre PostgreSQL en arrière-plan (port 127.0.0.1:5434)
+npm run db:up               # démarre PostgreSQL et attend qu'il soit prêt (port 127.0.0.1:5434)
 npm run db:generate         # génère le client Prisma dans src/generated/prisma
 npm run db:migrate          # crée les tables (applique prisma/migrations)
 npm run db:seed             # insère les données de démonstration
@@ -92,6 +94,7 @@ npm test                    # tests unitaires (sans base de données)
 npm run test:e2e            # tests de bout en bout (PostgreSQL doit être démarré)
 npm run lint                # analyse du code (oxlint)
 npm run build               # compilation dans dist/
+npm run check               # tout : format, TypeScript, lint, tests unitaires et e2e, build
 ```
 
 ## Base de données (Docker)

@@ -1,3 +1,4 @@
+# Versions des outils du projet (lues par mise : https://mise.jdx.dev).
+# Le projet utilise npm (fourni avec Node.js) et package-lock.json.
 [tools]
-node = "22"
-"npm:pnpm" = "10.34.3"
+node = "24"

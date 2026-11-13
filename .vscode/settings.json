@@ -1,0 +1,27 @@
+{
+  // Réglages partagés du projet (aucune préférence personnelle, aucun chemin absolu).
+
+  // Fins de ligne LF, comme imposé par .gitattributes (évite les différences CRLF sous Windows).
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+
+  // Utiliser la version de TypeScript du projet plutôt que celle intégrée à VS Code.
+  "typescript.tsdk": "node_modules/typescript/lib",
+
+  // Tailwind CSS v4 : reconnaître @apply, @theme, @source… dans les fichiers CSS.
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+
+  // Formateurs : Prisma pour le schéma ; le backend utilise Prettier, le frontend oxfmt.
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
+
+  // Fichiers générés : exclus des recherches.
+  "search.exclude": {
+    "**/dist": true,
+    "**/coverage": true,
+    "backend/src/generated": true
+  }
+}

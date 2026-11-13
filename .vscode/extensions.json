@@ -1,0 +1,11 @@
+{
+  // Extensions conseillées pour ProAvenir : VS Code les propose à l'ouverture du projet.
+  "recommendations": [
+    "oxc.oxc-vscode",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "Prisma.prisma",
+    "vitest.explorer",
+    "ms-azuretools.vscode-docker"
+  ]
+}

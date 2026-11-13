@@ -5,11 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "npm --prefix backend run start:dev",
+    "db:up": "npm --prefix backend run db:up",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node scripts/vitest.mjs run",
     "test:watch": "node scripts/vitest.mjs",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "check": "npm run check:front && npm run check:api",
+    "check:front": "oxfmt --check && tsc --noEmit --noUnusedLocals && npm test && npm run build",
+    "check:api": "npm --prefix backend run check"
   },
   "dependencies": {
     "lucide-react": "^1.72.0",
@@ -30,5 +35,9 @@
     "typescript": "^5.7.0",
     "vite": "^8.0.5",
     "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": "^24.15.0",
+    "npm": ">=11"
   }
 }

@@ -2,7 +2,7 @@
  * Entreprises fictives (démonstration).
  * Plus tard, ces données viendront de la table `Company` via l'API NestJS.
  */
-import type { Company } from "../types/offer.ts";
+import type { Company } from "../types/offer";
 
 export const mockCompanies: Company[] = [
   { id: 1, name: "Kamsar Solutions", initials: "KS", logoColor: "blue" },

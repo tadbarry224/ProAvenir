@@ -4,7 +4,7 @@
  */
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { formatShortDate, isValidIsoDate, todayIsoDate } from "./dates.ts";
+import { formatShortDate, isValidIsoDate, todayIsoDate } from "./dates";
 
 describe("isValidIsoDate", () => {
   it("reconnaît les dates réelles", () => {

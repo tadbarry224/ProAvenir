@@ -5,7 +5,7 @@
  * - "draft"   (brouillon)   : on accepte une offre incomplète, seul le titre est exigé.
  * - "publish" (publication) : tous les champs obligatoires doivent être valides.
  */
-import { isValidIsoDate, todayIsoDate } from "../../lib/dates.ts";
+import { isValidIsoDate, todayIsoDate } from "../../lib/dates";
 import {
   OFFER_CITIES,
   OFFER_DOMAINS,
@@ -13,7 +13,7 @@ import {
   type OfferField,
   type OfferFormValues,
   type OfferInput,
-} from "../../types/offer.ts";
+} from "../../types/offer";
 
 export type ValidationMode = "draft" | "publish";
 

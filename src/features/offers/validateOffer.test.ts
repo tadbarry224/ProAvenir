@@ -5,8 +5,8 @@
  */
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import type { OfferFormValues } from "../../types/offer.ts";
-import { parseSkills, toOfferFormValues, validateOffer } from "./validateOffer.ts";
+import type { OfferFormValues } from "../../types/offer";
+import { parseSkills, toOfferFormValues, validateOffer } from "./validateOffer";
 
 // Date fixe pour que les tests donnent toujours le même résultat.
 const TODAY = "2026-11-12";

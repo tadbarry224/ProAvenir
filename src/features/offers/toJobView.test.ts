@@ -4,8 +4,8 @@
  */
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import type { Company, Offer } from "../../types/offer.ts";
-import { toJobView } from "./toJobView.ts";
+import type { Company, Offer } from "../../types/offer";
+import { toJobView } from "./toJobView";
 
 const company: Company = { id: 4, name: "Fouta Conseil", initials: "FC", logoColor: "violet" };
 

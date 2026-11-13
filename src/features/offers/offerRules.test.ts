@@ -4,9 +4,9 @@
  */
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import type { Offer } from "../../types/offer.ts";
-import { mockOffers } from "../../data/mockOffers.ts";
-import { mockCompanies } from "../../data/mockCompanies.ts";
+import type { Offer } from "../../types/offer";
+import { mockOffers } from "../../data/mockOffers";
+import { mockCompanies } from "../../data/mockCompanies";
 import {
   buildOffer,
   changeStatus,
@@ -14,8 +14,8 @@ import {
   isExpired,
   isPubliclyVisible,
   nextStatus,
-} from "./offerRules.ts";
-import { toOfferFormValues, validateOffer } from "./validateOffer.ts";
+} from "./offerRules";
+import { toOfferFormValues, validateOffer } from "./validateOffer";
 
 const TODAY = "2026-11-12";
 const NOW = new Date("2026-11-12T10:00:00.000Z");

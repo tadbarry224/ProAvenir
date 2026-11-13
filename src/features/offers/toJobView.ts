@@ -5,8 +5,8 @@
  * Avantage : les composants d'affichage restent inchangés. Quand l'API renverra
  * des offres, il suffira de les passer dans cette même fonction.
  */
-import { formatShortDate } from "../../lib/dates.ts";
-import { OFFER_TYPE_LABELS, type Company, type Job, type Offer } from "../../types/offer.ts";
+import { formatShortDate } from "../../lib/dates";
+import { OFFER_TYPE_LABELS, type Company, type Job, type Offer } from "../../types/offer";
 
 /** Initiales de secours si l'entreprise est inconnue : « Fouta Conseil » → « FC ». */
 function initialsOf(name: string): string {

@@ -59,6 +59,12 @@ import { formatShortDate, todayIsoDate } from "./lib/dates";
 import { DEMO_COMPANY_ID, findCompany } from "./data/mockCompanies";
 import { candidateApplications, initialRecruitApplications } from "./data/mockApplications";
 import { initialModeratedOffers, initialPendingCompanies } from "./data/mockAdmin";
+import { StatCard } from "./components/ui/StatCard";
+import { CardHeading } from "./components/ui/CardHeading";
+import { FieldError } from "./components/ui/FieldError";
+import { JobLogo } from "./components/jobs/JobLogo";
+import { JobCard } from "./components/jobs/JobCard";
+import { MiniJob } from "./components/jobs/MiniJob";
 
 const statusStyle: Record<string, string> = {
   Envoyée: "bg-blue-50 text-blue-700",
@@ -191,58 +197,6 @@ function Footer({ go }: { go: (page: Page) => void }) {
         © 2026 ProAvenir. Conçu pour rapprocher les talents en Guinée.
       </div>
     </footer>
-  );
-}
-
-function JobLogo({ job, large = false }: { job: Job; large?: boolean }) {
-  return (
-    <span className={`job-logo logo-${job.color} ${large ? "size-16 text-lg" : "size-12 text-sm"}`}>
-      {job.initials}
-    </span>
-  );
-}
-
-function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
-  return (
-    <article
-      onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onClick();
-      }}
-      tabIndex={0}
-      role="button"
-      className="job-card group cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <JobLogo job={job} />
-        <div className="flex items-center gap-2">
-          {job.featured && <span className="pill bg-amber-50 text-amber-700">À la une</span>}
-          <span className={`pill ${job.type === "Stage" ? "pill-green" : "pill-blue"}`}>
-            {job.type}
-          </span>
-        </div>
-      </div>
-      <h3 className="mt-5 text-[17px] font-bold tracking-[-0.02em] text-[#0c2340] group-hover:text-[#1768c4]">
-        {job.title}
-      </h3>
-      <p className="mt-1 text-sm font-medium text-slate-500">{job.company}</p>
-      <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[13px] text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <MapPin size={14} />
-          {job.city}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <BriefcaseBusiness size={14} />
-          {job.contract.split(" · ")[0]}
-        </span>
-      </div>
-      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-400">
-        <span>{job.posted}</span>
-        <span className="flex items-center gap-1 font-bold text-[#1768c4]">
-          Voir l’offre <ArrowRight size={14} />
-        </span>
-      </div>
-    </article>
   );
 }
 
@@ -1323,51 +1277,6 @@ function CandidateProfile() {
   );
 }
 
-function StatCard({
-  icon: Icon,
-  value,
-  label,
-  tone,
-}: {
-  icon: typeof FileText;
-  value: string;
-  label: string;
-  tone: string;
-}) {
-  return (
-    <div className="stat-card">
-      <span className={`stat-icon stat-${tone}`}>
-        <Icon size={21} />
-      </span>
-      <div>
-        <p className="text-2xl font-extrabold text-[#0c2340]">{value}</p>
-        <p className="text-xs font-medium text-slate-500">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function CardHeading({
-  title,
-  action,
-  onAction,
-}: {
-  title: string;
-  action?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-      <h2 className="font-bold text-[#0c2340]">{title}</h2>
-      {action && (
-        <button onClick={onAction} className="text-link text-xs">
-          {action} <ArrowRight size={13} />
-        </button>
-      )}
-    </div>
-  );
-}
-
 function ApplicationTable({ items }: { items: CandidateApplication[] }) {
   return (
     <div className="overflow-x-auto">
@@ -1395,24 +1304,6 @@ function ApplicationTable({ items }: { items: CandidateApplication[] }) {
         </tbody>
       </table>
     </div>
-  );
-}
-
-function MiniJob({ job, go }: { job: Job; go: () => void }) {
-  return (
-    <button
-      onClick={go}
-      className="flex items-center gap-3 rounded-xl border border-slate-100 p-4 text-left hover:border-blue-200 hover:bg-blue-50/30"
-    >
-      <JobLogo job={job} />
-      <span className="min-w-0 flex-1">
-        <b className="block truncate text-sm text-[#0c2340]">{job.title}</b>
-        <small className="mt-1 block text-slate-400">
-          {job.company} · {job.city}
-        </small>
-      </span>
-      <ArrowRight size={16} className="text-slate-300" />
-    </button>
   );
 }
 
@@ -1749,16 +1640,6 @@ const emptyOfferForm: OfferFormValues = {
   deadline: "",
   skills: "",
 };
-
-/** Message d'erreur affiché sous un champ ; n'affiche rien s'il n'y a pas d'erreur. */
-function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
-  return (
-    <small id={id} className="mt-1.5 block text-xs font-medium text-red-600">
-      {message}
-    </small>
-  );
-}
 
 function PublishModal({
   onClose,

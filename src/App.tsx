@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,17 +8,13 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
-  CircleUserRound,
   Clock3,
   Eye,
   FileCheck2,
   FileText,
   GraduationCap,
-  LayoutDashboard,
   ListFilter,
-  LogOut,
   MapPin,
-  Menu,
   Plus,
   Search,
   ShieldCheck,
@@ -65,6 +61,11 @@ import { FieldError } from "./components/ui/FieldError";
 import { JobLogo } from "./components/jobs/JobLogo";
 import { JobCard } from "./components/jobs/JobCard";
 import { MiniJob } from "./components/jobs/MiniJob";
+import { Logo } from "./components/layout/Logo";
+import { Header } from "./components/layout/Header";
+import { Footer } from "./components/layout/Footer";
+import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { DashboardTop } from "./components/layout/DashboardTop";
 
 const statusStyle: Record<string, string> = {
   Envoyée: "bg-blue-50 text-blue-700",
@@ -73,132 +74,6 @@ const statusStyle: Record<string, string> = {
   Refusée: "bg-red-50 text-red-700",
   Retenue: "bg-emerald-50 text-emerald-700",
 };
-
-function Logo({ onClick }: { onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex items-center gap-2.5" aria-label="Retour à l'accueil">
-      <span className="logo-mark">
-        <span />
-      </span>
-      <span className="font-display text-[21px] font-extrabold tracking-[-0.04em] text-[#0c2340]">
-        Pro<span className="text-[#15966f]">Avenir</span>
-      </span>
-    </button>
-  );
-}
-
-function Header({
-  page,
-  go,
-  mobileOpen,
-  setMobileOpen,
-}: {
-  page: Page;
-  go: (page: Page) => void;
-  mobileOpen: boolean;
-  setMobileOpen: (value: boolean) => void;
-}) {
-  const isDashboard = ["candidate", "company", "admin"].includes(page);
-  return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
-      <div className="page-shell flex h-[72px] items-center justify-between">
-        <Logo onClick={() => go("home")} />
-        <nav className="hidden items-center gap-8 md:flex">
-          <button
-            onClick={() => go("home")}
-            className={page === "home" ? "nav-link active" : "nav-link"}
-          >
-            Accueil
-          </button>
-          <button
-            onClick={() => go("jobs")}
-            className={["jobs", "job"].includes(page) ? "nav-link active" : "nav-link"}
-          >
-            Offres
-          </button>
-          <button onClick={() => go("company")} className="nav-link">
-            Espace entreprise
-          </button>
-        </nav>
-        <div className="hidden items-center gap-3 md:flex">
-          <button onClick={() => go("login")} className="btn-ghost">
-            Se connecter
-          </button>
-          <button onClick={() => go("register")} className="btn-primary">
-            Créer un compte
-          </button>
-        </div>
-        <button
-          className="icon-button md:hidden"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Ouvrir le menu"
-        >
-          {mobileOpen ? <X size={21} /> : <Menu size={22} />}
-        </button>
-      </div>
-      {mobileOpen && (
-        <div className="border-t border-slate-100 bg-white px-5 py-4 md:hidden">
-          <div className="flex flex-col gap-1">
-            {[
-              ["home", "Accueil"],
-              ["jobs", "Offres"],
-              ["candidate", "Espace candidat"],
-              ["company", "Espace entreprise"],
-              ["admin", "Administration"],
-            ].map(([target, label]) => (
-              <button
-                key={target}
-                onClick={() => go(target as Page)}
-                className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                {label}
-              </button>
-            ))}
-            <button
-              onClick={() => go(isDashboard ? "home" : "login")}
-              className="btn-primary mt-3 w-full"
-            >
-              {isDashboard ? "Quitter l’espace" : "Se connecter"}
-            </button>
-          </div>
-        </div>
-      )}
-    </header>
-  );
-}
-
-function Footer({ go }: { go: (page: Page) => void }) {
-  return (
-    <footer className="bg-[#071a2f] text-white">
-      <div className="page-shell grid gap-10 py-12 md:grid-cols-[1.4fr_1fr_1fr]">
-        <div>
-          <Logo onClick={() => go("home")} />
-          <p className="mt-5 max-w-sm text-sm leading-6 text-slate-400">
-            La plateforme guinéenne qui rapproche les talents et les opportunités professionnelles.
-          </p>
-          <p className="mt-4 text-xs text-slate-500">
-            Prototype de démonstration — organisations et données fictives.
-          </p>
-        </div>
-        <div>
-          <p className="footer-title">Explorer</p>
-          <button onClick={() => go("jobs")}>Toutes les offres</button>
-          <button onClick={() => go("register")}>Créer un profil</button>
-          <button onClick={() => go("company")}>Publier une offre</button>
-        </div>
-        <div>
-          <p className="footer-title">ProAvenir</p>
-          <button onClick={() => go("home")}>Accueil</button>
-          <button onClick={() => go("login")}>Se connecter</button>
-          <button onClick={() => go("register")}>Créer un compte</button>
-        </div>
-      </div>
-      <div className="border-t border-white/10 py-5 text-center text-xs text-slate-500">
-        © 2026 ProAvenir. Conçu pour rapprocher les talents en Guinée.
-      </div>
-    </footer>
-  );
-}
 
 function Home({
   jobs,
@@ -954,146 +829,6 @@ function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: Page) =
         </div>
       </div>
     </main>
-  );
-}
-
-function DashboardLayout({
-  area,
-  go,
-  active,
-  setActive,
-  children,
-}: {
-  area: "candidate" | "company" | "admin";
-  go: (p: Page) => void;
-  active: string;
-  setActive: (x: string) => void;
-  children: ReactNode;
-}) {
-  const menu =
-    area === "candidate"
-      ? [
-          [LayoutDashboard, "Aperçu"],
-          [CircleUserRound, "Mon profil"],
-          [FileText, "Mes candidatures"],
-          [BriefcaseBusiness, "Découvrir les offres"],
-        ]
-      : area === "company"
-        ? [
-            [LayoutDashboard, "Aperçu"],
-            [Building2, "Profil entreprise"],
-            [BriefcaseBusiness, "Mes offres"],
-            [UsersRound, "Candidatures"],
-          ]
-        : [
-            [LayoutDashboard, "Vue générale"],
-            [ShieldCheck, "Entreprises"],
-            [FileCheck2, "Modération"],
-          ];
-  return (
-    <div className="dashboard-shell">
-      <aside className="dashboard-sidebar">
-        <div className="px-3">
-          <Logo onClick={() => go("home")} />
-        </div>
-        <div className="mt-9 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">
-          {area === "admin" ? "Administration" : "Mon espace"}
-        </div>
-        <nav className="mt-3 space-y-1">
-          {menu.map(([Icon, label]) => {
-            const IconComponent = Icon as typeof LayoutDashboard;
-            return (
-              <button
-                key={label as string}
-                onClick={() =>
-                  label === "Découvrir les offres" ? go("jobs") : setActive(label as string)
-                }
-                className={`dashboard-link ${active === label ? "active" : ""}`}
-              >
-                <IconComponent size={18} />
-                {label as string}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="mt-auto">
-          <div className="workspace-card">
-            <span>{area === "candidate" ? "MD" : area === "company" ? "KS" : "AD"}</span>
-            <div>
-              <b>
-                {area === "candidate"
-                  ? "Mariama Diallo"
-                  : area === "company"
-                    ? "Kamsar Solutions"
-                    : "Administrateur"}
-              </b>
-              <small>{area === "admin" ? "Accès sécurisé" : "Compte vérifié"}</small>
-            </div>
-          </div>
-          <button onClick={() => go("home")} className="dashboard-link">
-            <LogOut size={18} />
-            Déconnexion
-          </button>
-        </div>
-      </aside>
-      <div className="dashboard-main">
-        <nav className="dashboard-mobile-nav">
-          {menu.map(([Icon, label]) => {
-            const IconComponent = Icon as typeof LayoutDashboard;
-            return (
-              <button
-                key={label as string}
-                onClick={() =>
-                  label === "Découvrir les offres" ? go("jobs") : setActive(label as string)
-                }
-                className={active === label ? "active" : ""}
-              >
-                <IconComponent size={16} />
-                <span>{label as string}</span>
-              </button>
-            );
-          })}
-        </nav>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function DashboardTop({
-  title,
-  subtitle,
-  action,
-  onAction,
-  avatar,
-}: {
-  title: string;
-  subtitle: string;
-  action?: string;
-  onAction?: () => void;
-  avatar: string;
-}) {
-  return (
-    <div className="dashboard-top">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1>{title}</h1>
-          <span className="demo-chip">Données fictives</span>
-        </div>
-        <p>{subtitle}</p>
-      </div>
-      <div className="flex items-center gap-2">
-        {action && (
-          <button onClick={onAction} className="dashboard-action btn-primary">
-            <Plus size={17} />
-            <span>{action}</span>
-          </button>
-        )}
-        <span className="grid size-10 place-items-center rounded-full bg-[#0c2340] text-xs font-bold text-white md:hidden">
-          {avatar}
-        </span>
-      </div>
-    </div>
   );
 }
 

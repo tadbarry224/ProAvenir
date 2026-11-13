@@ -5,7 +5,7 @@
  * l'apparence ; ces tests vérifient que les fonctionnalités marchent.
  */
 import assert from "node:assert/strict";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, it } from "vitest";
 import { goTo, openTab, renderApp, setupAppTest, statValue, type } from "./test/appTestUtils";
 
@@ -196,5 +196,68 @@ describe("Administration", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Approuver" })[0]);
     assert.equal(statValue("Entreprises à vérifier"), "2");
     screen.getByText("Approuvée");
+  });
+});
+
+describe("Navigation (en-tête, pied de page, espaces)", () => {
+  setupAppTest();
+
+  const header = () => within(document.querySelector("header") as HTMLElement);
+  const isHome = () => screen.queryByText("Dernières opportunités") !== null;
+
+  it("la navigation principale de l'en-tête mène aux bonnes pages", () => {
+    renderApp();
+    const nav = within(document.querySelector("header nav") as HTMLElement);
+    fireEvent.click(nav.getByRole("button", { name: "Offres" }));
+    assert.equal(offersCount(), "6 offres disponibles");
+
+    fireEvent.click(
+      within(document.querySelector("header nav") as HTMLElement).getByRole("button", {
+        name: "Accueil",
+      }),
+    );
+    assert.equal(isHome(), true);
+
+    fireEvent.click(
+      within(document.querySelector("header nav") as HTMLElement).getByRole("button", {
+        name: "Espace entreprise",
+      }),
+    );
+    screen.getByText("Kamsar Solutions · Compte vérifié");
+  });
+
+  it("le logo ramène à l'accueil", () => {
+    renderApp();
+    goTo("Offres");
+    assert.equal(isHome(), false);
+    fireEvent.click(header().getByRole("button", { name: "Retour à l'accueil" }));
+    assert.equal(isHome(), true);
+  });
+
+  it("le menu mobile s'ouvre et se referme", () => {
+    renderApp();
+    assert.equal(header().queryByRole("button", { name: "Espace candidat" }), null);
+    fireEvent.click(header().getByRole("button", { name: "Ouvrir le menu" }));
+    header().getByRole("button", { name: "Espace candidat" });
+    fireEvent.click(header().getByRole("button", { name: "Ouvrir le menu" }));
+    assert.equal(header().queryByRole("button", { name: "Espace candidat" }), null);
+  });
+
+  it("le pied de page mène à la liste des offres", () => {
+    renderApp();
+    const footer = within(document.querySelector("footer") as HTMLElement);
+    fireEvent.click(footer.getByRole("button", { name: "Toutes les offres" }));
+    assert.equal(offersCount(), "6 offres disponibles");
+  });
+
+  it("« Découvrir les offres » et « Déconnexion » quittent l'espace candidat", () => {
+    renderApp();
+    goTo("Espace candidat");
+    openTab("Découvrir les offres");
+    assert.equal(offersCount(), "6 offres disponibles");
+
+    goTo("Espace candidat");
+    fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+    assert.equal(isHome(), true);
   });
 });

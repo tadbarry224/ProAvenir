@@ -1,18 +1,12 @@
 /**
  * Tests de la validation des offres.
- * Lancement : npm test
- * Outil : node:test, intégré à Node (aucune dépendance supplémentaire).
+ * Lancement : npm test (Vitest)
+ * Outil : Vitest (les assertions utilisent node:assert, intégré à Node).
  */
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import type { OfferFormValues } from "../../types/offer.ts";
-import {
-  isValidIsoDate,
-  parseSkills,
-  todayIsoDate,
-  toOfferFormValues,
-  validateOffer,
-} from "./validateOffer.ts";
+import type { OfferFormValues } from "../../types/offer";
+import { parseSkills, toOfferFormValues, validateOffer } from "./validateOffer";
 
 // Date fixe pour que les tests donnent toujours le même résultat.
 const TODAY = "2026-11-12";
@@ -148,15 +142,5 @@ describe("fonctions utilitaires", () => {
   it("parseSkills nettoie et dédoublonne", () => {
     assert.deepEqual(parseSkills(""), []);
     assert.deepEqual(parseSkills("React,  react , TypeScript,"), ["React", "TypeScript"]);
-  });
-
-  it("isValidIsoDate reconnaît les dates réelles", () => {
-    assert.equal(isValidIsoDate("2028-02-29"), true); // année bissextile
-    assert.equal(isValidIsoDate("2027-02-29"), false);
-    assert.equal(isValidIsoDate("2027-1-5"), false);
-  });
-
-  it("todayIsoDate utilise la date locale", () => {
-    assert.equal(todayIsoDate(new Date(2027, 0, 5, 23, 30)), "2027-01-05");
   });
 });

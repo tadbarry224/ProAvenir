@@ -17,7 +17,7 @@ import { useMemo, useState } from "react";
 import { mockOffers } from "../../data/mockOffers";
 import type { Offer, OfferInput, OfferStatus } from "../../types/offer";
 import { buildOffer, changeStatus, isPubliclyVisible } from "./offerRules";
-import { todayIsoDate } from "./validateOffer";
+import { todayIsoDate } from "../../lib/dates";
 
 export function useOffers(initialOffers: Offer[] = mockOffers) {
   const [offers, setOffers] = useState<Offer[]>(initialOffers);

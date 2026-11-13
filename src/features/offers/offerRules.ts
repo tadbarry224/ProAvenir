@@ -5,8 +5,8 @@
  * n'apporte AUCUNE sécurité. Quand l'API NestJS existera, le serveur devra
  * appliquer les mêmes règles (ne jamais renvoyer un brouillon au public, etc.).
  */
-import type { Offer, OfferDisplayStatus, OfferInput, OfferStatus } from "../../types/offer.ts";
-import { toOfferFormValues, validateOffer } from "./validateOffer.ts";
+import type { Offer, OfferDisplayStatus, OfferInput, OfferStatus } from "../../types/offer";
+import { toOfferFormValues, validateOffer } from "./validateOffer";
 
 /** Vrai si la date limite (AAAA-MM-JJ) est strictement avant aujourd'hui. */
 export function isExpired(offer: Offer, today: string): boolean {

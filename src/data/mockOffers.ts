@@ -6,7 +6,7 @@
  * Les heures sont fixées à midi UTC pour que le jour affiché reste le même
  * quel que soit le fuseau horaire du navigateur.
  */
-import type { Offer } from "../types/offer.ts";
+import type { Offer } from "../types/offer";
 
 export const mockOffers: Offer[] = [
   {

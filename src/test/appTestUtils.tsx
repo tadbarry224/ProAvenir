@@ -7,9 +7,10 @@
  * ces tests n'ont pas besoin d'être modifiés : s'ils restent verts et que
  * les snapshots sont identiques, le comportement et le rendu n'ont pas changé.
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import App from "../App";
+import { installFakeApi } from "./fakeApi";
 
 /** Date figée : les offres visibles et les dates affichées ne dépendent pas du jour du test. */
 export const FIXED_NOW = new Date("2026-11-12T10:00:00.000Z");
@@ -22,15 +23,32 @@ export function setupAppTest() {
     vi.setSystemTime(FIXED_NOW);
     // jsdom n'implémente pas le défilement ; `go()` l'appelle à chaque navigation.
     window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    // Faux serveur par défaut ; un test peut le réinstaller (ex. installFakeApi({ down: true })).
+    installFakeApi();
   });
   afterEach(() => {
     cleanup(); // retire l'application du faux document entre deux tests
     vi.useRealTimers();
+    vi.unstubAllGlobals(); // rétablit le vrai `fetch`
   });
 }
 
-export function renderApp() {
-  return render(<App />);
+/**
+ * Attend que les requêtes en cours vers le (faux) serveur soient terminées et
+ * que React ait affiché leurs résultats. À appeler après une action qui
+ * déclenche un chargement (navigation, filtre, recherche).
+ */
+export async function settle() {
+  // Plusieurs tours : villes/domaines d'abord, puis les offres filtrées.
+  for (let i = 0; i < 5; i++) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  }
+}
+
+export async function renderApp() {
+  const result = render(<App />);
+  await settle();
+  return result;
 }
 
 export type MenuLabel =
@@ -44,12 +62,13 @@ export type MenuLabel =
  * Navigue via le menu mobile de l'en-tête, présent sur toutes les pages
  * sauf connexion/inscription (jsdom n'applique pas le CSS, il est donc cliquable).
  */
-export function goTo(label: MenuLabel) {
+export async function goTo(label: MenuLabel) {
   const header = within(document.querySelector("header") as HTMLElement);
   fireEvent.click(header.getByRole("button", { name: "Ouvrir le menu" }));
   // Le menu mobile est affiché après la navigation principale : on prend le dernier bouton.
   const buttons = header.getAllByRole("button", { name: label });
   fireEvent.click(buttons[buttons.length - 1]);
+  await settle();
 }
 
 /** Clique sur un onglet d'un espace (le menu existe en double : barre latérale et mobile). */

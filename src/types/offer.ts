@@ -130,7 +130,7 @@ export type Offer = OfferInput & {
  * grâce à `toJobView` : les composants n'ont donc pas eu besoin de changer.
  */
 export type Job = {
-  id: number;
+  id: string; // UUID pour une offre de l'API, identifiant fictif converti en texte sinon
   title: string;
   company: string;
   initials: string;

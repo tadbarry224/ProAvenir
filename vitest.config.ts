@@ -25,5 +25,7 @@ export default defineConfig({
     // pour disposer d'un faux navigateur (document, window…).
     environment: "node",
     restoreMocks: true,
+    // Adresse fictive : les tests d'interface remplacent fetch par src/test/fakeApi.ts.
+    env: { VITE_API_URL: "http://api.test/api" },
   },
 });

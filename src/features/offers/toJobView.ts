@@ -14,6 +14,7 @@ import {
   type Job,
   type Offer,
 } from "../../types/offer";
+import type { PublicOffer } from "../../services/offersService";
 
 /**
  * Libellé du contrat affiché sur les cartes et le détail d'une offre :
@@ -42,11 +43,31 @@ function initialsOf(name: string): string {
     .join("");
 }
 
-export function toJobView(offer: Offer, company: Company | undefined): Job {
+/**
+ * Champs nécessaires à l'affichage. Une `Offer` (données locales de l'espace
+ * entreprise) comme une offre de l'API (après `publicOfferToJob`) les fournissent.
+ */
+type OfferViewSource = Pick<
+  Offer,
+  | "title"
+  | "type"
+  | "contractType"
+  | "workSchedule"
+  | "duration"
+  | "description"
+  | "deadline"
+  | "skills"
+  | "featured"
+  | "publishedAt"
+> & { id: number | string; city: string; domain: string; createdAt?: string };
+
+type CompanyView = Pick<Company, "name" | "logoColor"> & { initials?: string };
+
+export function toJobView(offer: OfferViewSource, company: CompanyView | undefined): Job {
   const companyName = company?.name ?? "Entreprise";
   const typeLabel = OFFER_TYPE_LABELS[offer.type];
   return {
-    id: offer.id,
+    id: String(offer.id),
     title: offer.title,
     company: companyName,
     initials: company?.initials ?? initialsOf(companyName),
@@ -54,11 +75,19 @@ export function toJobView(offer: Offer, company: Company | undefined): Job {
     domain: offer.domain,
     type: typeLabel,
     contract: contractLabel(offer),
-    posted: `Publiée le ${formatShortDate(offer.publishedAt ?? offer.createdAt)}`,
+    posted: `Publiée le ${formatShortDate(offer.publishedAt ?? offer.createdAt ?? "")}`,
     deadline: offer.deadline ? formatShortDate(offer.deadline) : "",
     description: offer.description,
     skills: offer.skills,
     color: company?.logoColor ?? "blue",
     featured: offer.featured,
   };
+}
+
+/**
+ * Offre renvoyée par GET /api/offers → modèle d'affichage.
+ * Les initiales du logo sont déduites du nom (« Nimba Digital » → « ND »).
+ */
+export function publicOfferToJob(offer: PublicOffer): Job {
+  return toJobView({ ...offer, city: offer.city.name, domain: offer.domain.name }, offer.company);
 }

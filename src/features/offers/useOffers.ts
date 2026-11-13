@@ -1,5 +1,6 @@
 /**
- * Hook qui centralise l'état des offres et les actions possibles.
+ * Hook qui centralise l'état des offres de l'ESPACE ENTREPRISE et les actions possibles.
+ * Les pages publiques n'utilisent plus ce hook : elles lisent l'API (usePublicOffers).
  *
  * Il est appelé UNE seule fois, dans `App` : comme `App` reste toujours affiché,
  * les offres survivent aux changements de page.
@@ -8,26 +9,20 @@
  * les données fictives de départ. La vraie persistance viendra de PostgreSQL.
  *
  * Correspondance avec la future API NestJS :
- *   publicOffers          → GET   /offers               (offres publiées et non expirées)
+ *   (offres publiques     → GET   /api/offers : déjà branché, voir usePublicOffers)
  *   getCompanyOffers(id)  → GET   /companies/me/offers
  *   createOffer(...)      → POST  /offers
  *   changeOfferStatus(id) → PATCH /offers/:id/status
  */
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { mockOffers } from "../../data/mockOffers";
 import type { Offer, OfferInput, OfferStatus } from "../../types/offer";
-import { buildOffer, changeStatus, isPubliclyVisible } from "./offerRules";
+import { buildOffer, changeStatus } from "./offerRules";
 import { todayIsoDate } from "../../lib/dates";
 
 export function useOffers(initialOffers: Offer[] = mockOffers) {
   const [offers, setOffers] = useState<Offer[]>(initialOffers);
   const today = todayIsoDate();
-
-  /** Offres visibles par le public : publiées et non expirées. */
-  const publicOffers = useMemo(
-    () => offers.filter((offer) => isPubliclyVisible(offer, today)),
-    [offers, today],
-  );
 
   /** Toutes les offres d'une entreprise (brouillons, clôturées et expirées comprises). */
   const getCompanyOffers = (companyId: number) =>
@@ -53,5 +48,5 @@ export function useOffers(initialOffers: Offer[] = mockOffers) {
     return null;
   };
 
-  return { offers, publicOffers, today, getCompanyOffers, createOffer, changeOfferStatus };
+  return { offers, today, getCompanyOffers, createOffer, changeOfferStatus };
 }

@@ -1,0 +1,10 @@
+{
+  "data": [
+    { "id": "commerce", "name": "Commerce" },
+    { "id": "finance", "name": "Finance" },
+    { "id": "informatique", "name": "Informatique" },
+    { "id": "logistique", "name": "Logistique" },
+    { "id": "marketing", "name": "Marketing" },
+    { "id": "ressources-humaines", "name": "Ressources humaines" }
+  ]
+}

@@ -27,7 +27,7 @@ const offer: Offer = {
 describe("toJobView", () => {
   it("convertit une offre au format attendu par les composants publics", () => {
     const job = toJobView(offer, company);
-    assert.equal(job.id, 7);
+    assert.equal(job.id, "7");
     assert.equal(job.company, "Fouta Conseil");
     assert.equal(job.initials, "FC");
     assert.equal(job.color, "violet");

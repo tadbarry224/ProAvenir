@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { Job } from "./types/offer";
 import type { Page } from "./types/navigation";
 import type { RecruitApplication } from "./types/application";
-import { toJobView } from "./features/offers/toJobView";
 import { useOffers } from "./features/offers/useOffers";
+import { usePublicOffers } from "./features/offers/usePublicOffers";
 import { DEMO_COMPANY_ID, findCompany } from "./data/mockCompanies";
 import { initialRecruitApplications } from "./data/mockApplications";
 import { Header } from "./components/layout/Header";
@@ -20,21 +20,17 @@ const demoCompany = findCompany(DEMO_COMPANY_ID);
 
 export default function App() {
   const [page, setPage] = useState<Page>("home");
-  // Source unique des offres : partagée entre l'espace entreprise et les pages publiques.
-  const { publicOffers, today, getCompanyOffers, createOffer, changeOfferStatus } = useOffers();
-  // Offres publiques converties au format d'affichage des composants existants.
-  const publicJobs = useMemo(
-    () => publicOffers.map((offer) => toJobView(offer, findCompany(offer.companyId))),
-    [publicOffers],
-  );
-  // On mémorise l'identifiant de l'offre consultée, pas une copie : on lit
-  // toujours sa version à jour (et on sait si elle n'est plus publique).
-  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
-  const selectedJob = publicJobs.find((job) => job.id === selectedJobId);
+  // Offres de l'espace entreprise : données locales fictives jusqu'à l'étape B4.
+  const { today, getCompanyOffers, createOffer, changeOfferStatus } = useOffers();
+  // Offres publiques : chargées depuis l'API (PostgreSQL), sans filtre.
+  // Utilisées par l'accueil, les offres recommandées et le compteur par type.
+  const { jobs: publicJobs } = usePublicOffers();
+  // Offre consultée (choisie depuis l'accueil ou la liste filtrée par l'API).
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [search, setSearch] = useState("");
   const [searchCity, setSearchCity] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [appliedIds, setAppliedIds] = useState<number[]>([]);
+  const [appliedIds, setAppliedIds] = useState<string[]>([]);
   const [recruitApplications, setRecruitApplications] = useState<RecruitApplication[]>(
     initialRecruitApplications,
   );
@@ -48,7 +44,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const selectJob = (job: Job) => {
-    setSelectedJobId(job.id);
+    setSelectedJob(job);
     go("job");
   };
   const jobsPage = (
@@ -84,7 +80,6 @@ export default function App() {
       )}
       {page === "jobs" && jobsPage}
       {page === "job" &&
-        // Si l'offre n'est plus publique (clôturée, expirée…), on revient à la liste.
         (selectedJob ? (
           <JobDetails
             job={selectedJob}

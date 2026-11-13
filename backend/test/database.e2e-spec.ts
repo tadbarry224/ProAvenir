@@ -16,6 +16,8 @@ import {
   companyOwnerId,
   offerId,
 } from '../prisma/seed-data.js';
+// Règle publique réellement utilisée par GET /api/offers.
+import { publicOffersWhere } from '../src/offers/public-offer.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -34,12 +36,6 @@ async function inRolledBackTransaction(
     }),
   ).rejects.toBeInstanceOf(Rollback);
 }
-
-/** Règle publique (frontend : isPubliclyVisible) traduite en requête. */
-const publicOffersWhere = (today: string): Prisma.OfferWhereInput => ({
-  status: 'PUBLISHED',
-  deadline: { gte: new Date(today) },
-});
 
 const draftOffer = (
   overrides: Partial<Prisma.OfferUncheckedCreateInput> = {},

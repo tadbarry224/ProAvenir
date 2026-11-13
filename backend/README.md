@@ -65,6 +65,26 @@ Vérification : ouvrir http://localhost:3001/api/health
 - `{"status":"ok","database":"up"}` (200) : l'API et la base fonctionnent ;
 - `{"status":"error","database":"down"}` (503) : la base ne répond pas (`docker compose ps`).
 
+## API publiques (sans connexion)
+
+| Route | Réponse |
+| --- | --- |
+| `GET /api/cities` | `{ data: [{ id: "boke", name: "Boké" }, …] }` (ordre alphabétique) |
+| `GET /api/domains` | `{ data: [{ id: "commerce", name: "Commerce" }, …] }` |
+| `GET /api/offers` | `{ data: [offre…], meta: { total, today } }` |
+
+`GET /api/offers` ne renvoie que les offres **publiées**, dont la **date limite est aujourd'hui ou plus tard** (jour de Conakry) et dont l'**entreprise est validée**, les plus récentes d'abord.
+Filtres facultatifs et combinables :
+
+- `city` : identifiant de ville (`boke`) ;
+- `domain` : identifiant de domaine (`ressources-humaines`) ;
+- `type` : `JOB` ou `INTERNSHIP` ;
+- `q` : recherche dans l'intitulé, le nom de l'entreprise et les compétences (100 caractères maximum, majuscules ignorées).
+
+Exemple : http://localhost:3001/api/offers?city=conakry&type=JOB&q=web
+
+Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics sont lus en base (`publicOfferSelect` dans `src/offers/public-offer.ts`) : aucune donnée de compte ni de contact.
+
 ## Tests et vérifications
 
 ```bash
@@ -100,10 +120,13 @@ backend/
 │   └── seed-data.ts       données de démonstration (identifiants fixes, sans mot de passe)
 ├── src/
 │   ├── main.ts            démarrage du serveur
-│   ├── app.setup.ts       préfixe /api, CORS, arrêt propre (partagé avec les tests e2e)
+│   ├── app.setup.ts       préfixe /api, validation des paramètres, CORS, arrêt propre (partagé avec les tests e2e)
 │   ├── app.module.ts      module racine
 │   ├── config/            validation des variables d'environnement
 │   ├── prisma/            PrismaService (connexion unique à la base)
-│   └── health/            GET /api/health
+│   ├── common/            ClockService (date du jour à Conakry, remplaçable en test)
+│   ├── health/            GET /api/health
+│   ├── reference/         GET /api/cities, GET /api/domains
+│   └── offers/            GET /api/offers (filtres validés par ListOffersQueryDto)
 └── test/                  tests de bout en bout
 ```

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
-import { ListFilter, Search, SlidersHorizontal, X } from "lucide-react";
-import { OFFER_CITIES, OFFER_DOMAINS, type Job } from "../types/offer";
-import { formatShortDate, todayIsoDate } from "../lib/dates";
+import { useState } from "react";
+import { CircleAlert, ListFilter, LoaderCircle, Search, SlidersHorizontal, X } from "lucide-react";
+import { OFFER_TYPES, OFFER_TYPE_LABELS, type Job } from "../types/offer";
+import { formatShortDate } from "../lib/dates";
 import { JobCard } from "../components/jobs/JobCard";
+import { usePublicOffers, useReferenceLists } from "../features/offers/usePublicOffers";
 
 export function JobsPage({
   jobs,
@@ -12,7 +13,7 @@ export function JobsPage({
   setCity,
   selectJob,
 }: {
-  jobs: Job[]; // offres publiques uniquement (publiées et non expirées)
+  jobs: Job[]; // toutes les offres publiques (sert au nombre d'offres par type)
   search: string;
   setSearch: (value: string) => void;
   city: string;
@@ -23,29 +24,36 @@ export function JobsPage({
   const [domain, setDomain] = useState("");
   const [type, setType] = useState("");
   const [mobileFilters, setMobileFilters] = useState(false);
-  const filtered = useMemo(
-    () =>
-      jobs.filter((job) => {
-        const matchSearch = `${job.title} ${job.company} ${job.skills.join(" ")}`
-          .toLowerCase()
-          .includes(search.toLowerCase());
-        return (
-          matchSearch &&
-          (!city || job.city === city) &&
-          (!domain || job.domain === domain) &&
-          (!type || job.type === type)
-        );
-      }),
-    [jobs, search, city, domain, type],
+  // Les filtres sont appliqués par l'API (GET /api/offers). Les listes déroulantes
+  // affichent les noms ; l'API attend les identifiants (« Boké » → « boke »).
+  const references = useReferenceLists();
+  const cities = references.data?.cities ?? [];
+  const domains = references.data?.domains ?? [];
+  const idOf = (items: { id: string; name: string }[], name: string) =>
+    // Nom inconnu (ne devrait pas arriver) : on l'envoie tel quel, l'API répondra par une erreur.
+    name ? (items.find((item) => item.name === name)?.id ?? name) : undefined;
+  const results = usePublicOffers(
+    references.data
+      ? {
+          city: idOf(cities, city),
+          domain: idOf(domains, domain),
+          type: OFFER_TYPES.find((value) => OFFER_TYPE_LABELS[value] === type),
+          q: search,
+        }
+      : null, // on attend les villes et domaines
   );
+  const filtered = results.jobs;
+  const error = references.error ?? results.error;
+  const loading = !error && results.status === "loading";
+  const retry = () => (references.error ? references.reload() : results.reload());
   const filters = (
     <>
       <div className="filter-group">
         <label>Ville</label>
         <select value={city} onChange={(e) => setCity(e.target.value)}>
           <option value="">Toutes les villes</option>
-          {OFFER_CITIES.map((x) => (
-            <option key={x}>{x}</option>
+          {cities.map((x) => (
+            <option key={x.id}>{x.name}</option>
           ))}
         </select>
       </div>
@@ -53,8 +61,8 @@ export function JobsPage({
         <label>Domaine</label>
         <select value={domain} onChange={(e) => setDomain(e.target.value)}>
           <option value="">Tous les domaines</option>
-          {OFFER_DOMAINS.map((x) => (
-            <option key={x}>{x}</option>
+          {domains.map((x) => (
+            <option key={x.id}>{x.name}</option>
           ))}
         </select>
       </div>
@@ -134,24 +142,51 @@ export function JobsPage({
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-[#0c2340]">
-                {filtered.length} offre{filtered.length !== 1 ? "s" : ""} disponible
-                {filtered.length !== 1 ? "s" : ""}
+                {error ? (
+                  "Offres indisponibles"
+                ) : loading ? (
+                  "Chargement des offres…"
+                ) : (
+                  <>
+                    {filtered.length} offre{filtered.length !== 1 ? "s" : ""} disponible
+                    {filtered.length !== 1 ? "s" : ""}
+                  </>
+                )}
               </h2>
-              <p className="mt-1 text-xs text-slate-400">
-                {/* Date réelle utilisée pour masquer les offres expirées (voir offerRules). */}
-                Données fictives — offres ouvertes au {formatShortDate(todayIsoDate())}
-              </p>
+              {results.today && !loading && !error && (
+                <p className="mt-1 text-xs text-slate-400">
+                  {/* Date du serveur utilisée pour masquer les offres expirées. */}
+                  Offres ouvertes au {formatShortDate(results.today)}
+                </p>
+              )}
             </div>
             <button onClick={() => setMobileFilters(true)} className="btn-secondary px-3 lg:hidden">
               <ListFilter size={17} /> Filtres
             </button>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {filtered.map((job) => (
-              <JobCard key={job.id} job={job} onClick={() => selectJob(job)} />
-            ))}
-          </div>
-          {!filtered.length && (
+          {error ? (
+            <div className="empty-state" role="alert">
+              <CircleAlert size={28} />
+              <h3>Impossible de charger les offres</h3>
+              <p>{error}</p>
+              <button onClick={retry} className="btn-secondary mx-auto mt-4">
+                Réessayer
+              </button>
+            </div>
+          ) : loading ? (
+            <div className="empty-state" role="status">
+              <LoaderCircle size={28} className="animate-spin" />
+              <h3>Chargement des offres…</h3>
+              <p>Connexion au serveur ProAvenir.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {filtered.map((job) => (
+                <JobCard key={job.id} job={job} onClick={() => selectJob(job)} />
+              ))}
+            </div>
+          )}
+          {!error && !loading && !filtered.length && (
             <div className="empty-state">
               <Search size={28} />
               <h3>Aucune offre trouvée</h3>

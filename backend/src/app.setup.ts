@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from './config/env.validation.js';
 
@@ -13,6 +13,17 @@ export function configureApp(app: INestApplication): void {
 
   // Toutes les routes commencent par /api (ex. GET /api/health).
   app.setGlobalPrefix('api');
+
+  // Validation automatique des paramètres reçus (query, body) d'après les DTO :
+  // - whitelist : ignore les champs non déclarés ; forbidNonWhitelisted : les refuse (400) ;
+  // - transform : applique les @Transform (ex. suppression des espaces).
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // Seules les adresses du frontend listées dans CORS_ORIGIN peuvent appeler l'API
   // depuis un navigateur. `credentials` prépare l'envoi du cookie de rafraîchissement (B3).

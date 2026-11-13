@@ -1,7 +1,14 @@
-// Schéma de la base de données ProAvenir.
+// Schéma de la base de données ProAvenir (PostgreSQL).
 //
-// Phase B0 : aucun modèle. Les tables (User, Company, Offer, Application…)
-// seront ajoutées en phase B1 avec la première migration.
+// Conventions :
+// - Identifiants UUID pour les entités principales (non devinables dans les URL).
+//   Les autorisations ne reposent JAMAIS sur le secret d'un identifiant : elles sont
+//   vérifiées par le backend (rôle + appartenance à l'entreprise + propriété).
+// - Listes de référence (villes, domaines) : identifiant lisible et stable (« conakry »).
+// - Dates avec fuseau horaire (timestamptz). Date limite d'une offre : type DATE seul.
+// - Règles métier reprises du frontend (src/features/offers) :
+//   brouillons privés, offres expirées non publiques (calculé : PUBLISHED et
+//   deadline >= aujourd'hui), validation avant publication, contrôle de propriété.
 
 generator client {
   provider = "prisma-client"
@@ -11,4 +18,229 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Énumérations
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  CANDIDATE
+  COMPANY
+  ADMIN
+}
+
+/// Vérification d'une entreprise par un administrateur.
+enum CompanyStatus {
+  PENDING // inscrite, en attente : peut compléter son profil et créer des brouillons
+  APPROVED // peut publier des offres
+  REJECTED // refusée (motif dans rejectionReason)
+}
+
+/// Rôle d'un utilisateur au sein d'une entreprise (prépare plusieurs recruteurs).
+enum CompanyMemberRole {
+  OWNER // compte principal (un seul en V1)
+  RECRUITER // recruteur supplémentaire (évolution future)
+}
+
+enum OfferType {
+  JOB // Emploi
+  INTERNSHIP // Stage
+}
+
+enum OfferStatus {
+  DRAFT // brouillon : jamais visible publiquement
+  PUBLISHED // publiée : visible si la date limite n'est pas dépassée
+  CLOSED // clôturée par l'entreprise
+}
+
+enum ApplicationStatus {
+  SENT // Envoyée
+  IN_REVIEW // En examen
+  SHORTLISTED // Présélectionnée
+  REJECTED // Refusée
+  ACCEPTED // Retenue
+}
+
+// ---------------------------------------------------------------------------
+// Utilisateurs et profils
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String            @id @default(uuid()) @db.Uuid
+  /// Toujours enregistré en minuscules (normalisé par le backend).
+  email            String            @unique
+  /// Haché avec argon2 (phase B3). Null = compte sans mot de passe, qui ne peut pas
+  /// se connecter (comptes de démonstration, futurs recruteurs invités).
+  passwordHash     String?
+  role             UserRole
+  fullName         String
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  candidateProfile CandidateProfile?
+  companyMembers   CompanyMember[]
+  refreshTokens    RefreshToken[]
+}
+
+model CandidateProfile {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @unique @db.Uuid
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cityId       String?
+  city         City?         @relation(fields: [cityId], references: [id])
+  /// « Formation » (ex. Licence en Communication — Université de Sonfonia)
+  education    String?
+  /// « Présentation »
+  bio          String?
+  skills       String[]      @default([])
+  /// Emplacement du fichier stocké (phase B6). Le fichier n'est jamais en base.
+  cvFileKey    String?
+  cvFileName   String?
+  applications Application[]
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@index([cityId])
+}
+
+// ---------------------------------------------------------------------------
+// Entreprises
+// ---------------------------------------------------------------------------
+
+model Company {
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String
+  /// Champs du profil : facultatifs, car complétés après l'inscription.
+  sector          String?
+  cityId          String?
+  city            City?           @relation(fields: [cityId], references: [id])
+  description     String?
+  contactEmail    String?
+  phone           String?
+  /// Couleur du logo par défaut dans l'interface (classes .logo-blue, .logo-green…).
+  logoColor       String          @default("blue")
+  status          CompanyStatus   @default(PENDING)
+  rejectionReason String?
+  /// Date de la décision de l'administrateur (approbation ou refus).
+  reviewedAt      DateTime?       @db.Timestamptz(3)
+  members         CompanyMember[]
+  offers          Offer[]
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+}
+
+/// Lien utilisateur ↔ entreprise. En V1 : un compte OWNER par entreprise, et un
+/// utilisateur n'appartient qu'à une entreprise (userId unique). Pour plusieurs
+/// recruteurs, il suffira d'ajouter des lignes RECRUITER, sans refonte.
+model CompanyMember {
+  id        String            @id @default(uuid()) @db.Uuid
+  companyId String            @db.Uuid
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String            @unique @db.Uuid
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      CompanyMemberRole @default(OWNER)
+  createdAt DateTime          @default(now()) @db.Timestamptz(3)
+
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Référentiels
+// ---------------------------------------------------------------------------
+
+model City {
+  /// Code stable et lisible : "conakry", "labe"…
+  id         String             @id
+  name       String             @unique
+  offers     Offer[]
+  companies  Company[]
+  candidates CandidateProfile[]
+}
+
+model Domain {
+  /// Code stable et lisible : "informatique", "ressources-humaines"…
+  id     String  @id
+  name   String  @unique
+  offers Offer[]
+}
+
+// ---------------------------------------------------------------------------
+// Offres et candidatures
+// ---------------------------------------------------------------------------
+
+model Offer {
+  id           String        @id @default(uuid()) @db.Uuid
+  /// Entreprise propriétaire : seuls ses membres peuvent modifier l'offre.
+  companyId    String        @db.Uuid
+  /// Restrict : une entreprise qui a des offres ne peut pas être supprimée par erreur.
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  title        String        @db.VarChar(120)
+  type         OfferType
+  cityId       String
+  city         City          @relation(fields: [cityId], references: [id])
+  domainId     String
+  domain       Domain        @relation(fields: [domainId], references: [id])
+  description  String
+  /// Date limite (sans heure). Facultative pour un brouillon, obligatoire pour publier
+  /// (contrainte CHECK ajoutée dans la migration).
+  deadline     DateTime?     @db.Date
+  skills       String[]      @default([])
+  status       OfferStatus   @default(DRAFT)
+  featured     Boolean       @default(false)
+  /// Date de première publication (conservée lors d'une réouverture).
+  publishedAt  DateTime?     @db.Timestamptz(3)
+  closedAt     DateTime?     @db.Timestamptz(3)
+  applications Application[]
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
+
+  /// Liste publique : status = PUBLISHED et deadline >= aujourd'hui.
+  @@index([status, deadline])
+  /// Espace entreprise : « Mes offres ».
+  @@index([companyId, status])
+  @@index([cityId])
+  @@index([domainId])
+}
+
+model Application {
+  id          String            @id @default(uuid()) @db.Uuid
+  offerId     String            @db.Uuid
+  /// Restrict : une offre qui a reçu des candidatures se clôture, elle ne se supprime pas.
+  offer       Offer             @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  candidateId String            @db.Uuid
+  candidate   CandidateProfile  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  /// « Message au recruteur » (facultatif)
+  message     String?
+  /// CV transmis au moment de la candidature (le candidat peut remplacer son CV ensuite).
+  cvFileKey   String?
+  cvFileName  String?
+  status      ApplicationStatus @default(SENT)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  /// Impossible de postuler deux fois à la même offre.
+  @@unique([offerId, candidateId])
+  @@index([candidateId])
+  @@index([offerId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Authentification
+// ---------------------------------------------------------------------------
+
+/// Jeton de rafraîchissement (phase B3). Seule son empreinte est stockée :
+/// une fuite de la base ne permet pas de se connecter. Révocable (déconnexion).
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
 }

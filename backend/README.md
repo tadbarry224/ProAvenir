@@ -15,11 +15,44 @@ Toutes les commandes se lancent depuis le dossier `backend/`.
 npm install                 # installe les dépendances
 cp .env.example .env        # crée la configuration locale, puis remplacer les « change-me »
 docker compose up -d        # démarre PostgreSQL en arrière-plan (port 127.0.0.1:5434)
-npx prisma generate         # génère le client Prisma dans src/generated/prisma
+npm run db:generate         # génère le client Prisma dans src/generated/prisma
+npm run db:migrate          # crée les tables (applique prisma/migrations)
+npm run db:seed             # insère les données de démonstration
 ```
 
 > Dans `.env`, le mot de passe doit être identique dans `POSTGRES_PASSWORD` et dans `DATABASE_URL`.
 > Le fichier `.env` contient des secrets : il n'est jamais envoyé dans Git.
+
+## Base de données : migrations et données de départ
+
+| Commande | Effet |
+| --- | --- |
+| `npm run db:status` | indique si toutes les migrations sont appliquées |
+| `npm run db:migrate` | applique les migrations en attente (`prisma migrate deploy`, jamais de réinitialisation) |
+| `npm run db:generate` | régénère le client Prisma après une modification de `schema.prisma` |
+| `npm run db:seed` | insère ou met à jour les données de démonstration (relançable sans doublon) |
+
+**Modifier le modèle** : éditer `prisma/schema.prisma`, puis
+`npx prisma migrate dev --name description-courte --create-only` pour générer la
+migration SQL, la relire, puis `npm run db:migrate`.
+
+⚠️ Ne jamais lancer `prisma migrate reset` ni `docker compose down -v` sans accord : ces
+commandes effacent toutes les données.
+
+### Données de démonstration (`prisma/seed-data.ts`)
+
+Reprises des données fictives du frontend : 4 villes, 6 domaines, 9 entreprises
+(6 approuvées, 3 en attente de vérification), 6 offres publiées, 2 candidats,
+4 candidatures, 1 administrateur.
+
+- **Identifiants fixes** : relancer `npm run db:seed` met à jour les mêmes lignes, sans doublon
+  ni suppression.
+- **Aucun mot de passe** : les comptes de démonstration ont `passwordHash = null` et ne
+  peuvent pas se connecter. Leurs e-mails utilisent le domaine réservé `.test`
+  (ex. `mariama.diallo@proavenir.test`), qui ne peut appartenir à personne.
+- La connexion à ces comptes sera rendue possible en phase B3 (authentification), par une
+  commande qui définira un mot de passe **choisi localement et haché avec argon2**, jamais
+  écrit dans le code.
 
 ## Lancer l'API
 
@@ -60,7 +93,11 @@ backend/
 ├── docker-compose.yml     PostgreSQL local
 ├── .env.example           modèle de configuration (versionné)
 ├── prisma.config.ts       configuration de la ligne de commande Prisma
-├── prisma/schema.prisma   modèle de données (tables ajoutées en phase B1)
+├── prisma/
+│   ├── schema.prisma      modèle de données (9 tables)
+│   ├── migrations/        historique SQL versionné (ne jamais modifier une migration appliquée)
+│   ├── seed.ts            script des données de démonstration
+│   └── seed-data.ts       données de démonstration (identifiants fixes, sans mot de passe)
 ├── src/
 │   ├── main.ts            démarrage du serveur
 │   ├── app.setup.ts       préfixe /api, CORS, arrêt propre (partagé avec les tests e2e)

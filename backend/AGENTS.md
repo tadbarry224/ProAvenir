@@ -19,7 +19,10 @@ REST API for ProAvenir. Read `README.md` for setup. The frontend lives at the re
 - `src/config/env.validation.ts` - validates `.env` at startup
 - `src/prisma/` - global `PrismaService`
 - `src/health/` - `GET /api/health` (200 when PostgreSQL answers, 503 otherwise, no technical details in the response)
-- `prisma/schema.prisma` - data model; migrations go in `prisma/migrations/`
+- `prisma/schema.prisma` - data model (User, CandidateProfile, Company, CompanyMember, City, Domain, Offer, Application, RefreshToken). Extra CHECK constraints live in the migration SQL (Prisma ignores them, keep them when editing).
+- `prisma/migrations/` - versioned SQL; never edit an applied migration. Create new ones with `prisma migrate dev --create-only`, review, then `npm run db:migrate`.
+- `prisma/seed.ts` + `seed-data.ts` - idempotent demo data (fixed UUIDs, upserts, no deletes, no passwords: `passwordHash` is null). Run `npm run db:seed`.
+- Public offer rule: `status = PUBLISHED AND deadline >= today` (drafts and closed/expired offers are never public). Publishing also requires the company to be `APPROVED` (enforced in services, B4).
 
 ## Rules
 

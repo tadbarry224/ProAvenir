@@ -5,6 +5,7 @@
  * Aucune donnée de compte (e-mail, mot de passe…), aucun contact ni statut
  * d'entreprise, aucun identifiant interne d'entreprise ne peut donc sortir par erreur.
  */
+import { toIsoDate } from '../common/dates.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type {
   ContractType,
@@ -75,9 +76,6 @@ export const publicOfferSelect = {
 type PublicOfferRow = Prisma.OfferGetPayload<{
   select: typeof publicOfferSelect;
 }>;
-
-/** Une colonne DATE arrive en Date à minuit UTC : on la renvoie en "AAAA-MM-JJ". */
-const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
 
 export function toPublicOffer(row: PublicOfferRow): PublicOffer {
   // La règle publique et les contraintes CHECK garantissent ces deux dates.

@@ -108,6 +108,23 @@ Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics so
   `persistent` = « Se souvenir de moi »). Sans « Se souvenir de moi » : 24 h maximum.
 - Les sessions expirées ou révoquées restent en base ; un nettoyage périodique est prévu plus tard.
 
+## Espace entreprise : ses offres
+
+| Route | Accès | Réponse |
+| --- | --- | --- |
+| `GET /api/companies/me/offers` | rôle `COMPANY` | `{ data: [offre…], meta: { total, today, company: { name, status } } }` |
+
+- Renvoie **toutes** les offres de l'entreprise connectée (brouillons, publiées, clôturées,
+  expirées), les plus récentes d'abord, avec le **nombre réel de candidatures**
+  (`applicationsCount`) et `publiclyVisible` (même règle que `GET /api/offers`).
+- **L'entreprise est déduite de la session** (table `CompanyMember`) : aucun identifiant
+  d'entreprise n'est lu dans l'URL ni dans la requête. Une entreprise ne voit jamais les offres
+  d'une autre.
+- Sans jeton : **401**. Candidat ou administrateur : **403**. Compte entreprise sans entreprise :
+  **403**. Les entreprises `PENDING` et `REJECTED` peuvent consulter leurs offres (lecture seule).
+- Seuls les champs listés dans `companyOfferSelect` (`src/company-offers/company-offer.ts`)
+  sont lus : aucune donnée de compte, de contact ni de candidat.
+
 ## Tests et vérifications
 
 ```bash
@@ -148,10 +165,11 @@ backend/
 │   ├── app.module.ts      module racine
 │   ├── config/            validation des variables d'environnement
 │   ├── prisma/            PrismaService (connexion unique à la base)
-│   ├── common/            ClockService (date du jour à Conakry, remplaçable en test)
+│   ├── common/            ClockService (date du jour à Conakry, remplaçable en test), dates
 │   ├── health/            GET /api/health
 │   ├── auth/              inscription, connexion, sessions, gardes (JWT, rôles, CSRF), argon2id
 │   ├── reference/         GET /api/cities, GET /api/domains
-│   └── offers/            GET /api/offers (filtres validés par ListOffersQueryDto)
+│   ├── offers/            GET /api/offers (filtres validés par ListOffersQueryDto)
+│   └── company-offers/    GET /api/companies/me/offers (offres de l'entreprise connectée)
 └── test/                  tests de bout en bout
 ```

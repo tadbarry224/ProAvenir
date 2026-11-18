@@ -6,7 +6,7 @@
   "files.insertFinalNewline": true,
 
   // Utiliser la version de TypeScript du projet plutôt que celle intégrée à VS Code.
-  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
 
   // Tailwind CSS v4 : reconnaître @apply, @theme, @source… dans les fichiers CSS.
   "files.associations": {

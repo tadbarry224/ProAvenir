@@ -1,69 +1,24 @@
-# figma-make-app
+# ProAvenir
 
-React + Vite + Tailwind CSS project running inside Figma Make.
+Job platform (candidates, companies, administration) made of two separate applications. Each one is its own npm project, with its own `package.json`, `package-lock.json`, `node_modules`, `.env` and tooling. Install, start, test and build them independently.
 
-## Development Server
+| Folder      | Application                                       | Port            | Detailed guide                                   |
+| ----------- | ------------------------------------------------- | --------------- | ------------------------------------------------ |
+| `frontend/` | React 19 + Vite 8 + TypeScript + Tailwind CSS v4  | 8443            | `frontend/AGENTS.md` (read before editing there) |
+| `backend/`  | NestJS + Prisma + PostgreSQL 17 (Docker) REST API | 3001 (DB: 5434) | `backend/AGENTS.md` (read before editing there)  |
 
-A Vite development server is **already running** on `$PORT` (default 8443). You don't need to start it manually.
+## Repository root
 
-- Preview URL: The user can access the running app through the preview panel
-- Hot reload: Changes to source files are reflected immediately
-
-## Project Structure
-
-This is the canonical project structure. Start with task-relevant files below. Only follow imports or inspect other files when required, when a documented path is missing, or when the repository contradicts this guide.
-
-- `src/main.tsx` - React entrypoint; imports `src/index.css` and mounts `src/App.tsx` into the `#root` element
-- `src/App.tsx` - Root component only: current page (`page` state, no router yet), shared state (offers via `useOffers`, applications) and page selection
-- `src/pages/` - One file per screen: `Home`, `JobsPage`, `JobDetails`, `AuthPage`, plus `candidate/`, `company/` and `admin/` dashboards
-- `src/components/` - Reusable UI without business logic: `layout/` (Logo, Header, Footer, DashboardLayout, DashboardTop), `ui/` (StatCard, CardHeading, FieldError), `jobs/` (JobLogo, JobCard, MiniJob)
-- `src/features/offers/` - Offer business logic: validation (`validateOffer`), rules (`offerRules`), display mapping (`toJobView`, `publicOfferToJob`), public data hooks (`usePublicOffers`, `useReferenceLists`: API), company state hook (`useOffers`: local mock data until step B4), `PublishModal`
-- `src/features/applications/` - Application tables and status styles
-- `src/features/auth/` - Session state: `AuthProvider` (restores the session from the httpOnly cookie on load, keeps the access token in memory only, renews it before expiry), `useAuth()` in `authContext.ts`, `demoAccounts` (dev-only email prefill, no passwords)
-- `src/types/` - Shared TypeScript types (`offer`, `application`, `admin`, `navigation`)
-- `src/services/` - HTTP calls to the NestJS API: `apiClient` (base URL from `VITE_API_URL`, French `ApiError` messages, timeout), `offersService`, `referenceService` (cities, domains), `authService` (login/register/refresh/logout/me with `credentials: "include"` and the `X-ProAvenir-CSRF` header). Depends only on `types`.
-- `src/data/` - Mock data, still used by the company, candidate and admin dashboards (to be replaced by the NestJS API)
-- `src/lib/` - Generic helpers (`dates`, `useApiData` loading/error/success hook)
-- `.env.example` - Frontend configuration template; copy to `.env` (git-ignored) with `VITE_API_URL=http://localhost:3001/api`
-- `src/index.css` - Global CSS entrypoint and Tailwind CSS v4 import
-- `index.html` - Vite HTML shell containing the `#root` element and loading `src/main.tsx`
-- `package.json` - Project dependencies and the Vite build, development, preview, test, and formatting scripts
-- `vite.config.ts` - Vite configuration with React, Tailwind CSS v4, and Figma Make plugins plus the `@` alias for `src`
-- `vitest.config.ts` - Test configuration (kept separate from the Figma Make plugins)
-- `.mise.toml` - Toolchain version (Node.js 24). The project uses **npm** and `package-lock.json` (no pnpm); `engines` in both `package.json` files requires Node ^24.15 and npm >=11
+- `package.json` - Command shortcuts only, no dependencies: `dev` (frontend), `dev:api`, `db:up`, `build`, `check` (= `check:front` + `check:api`), `install:all`. They call `npm --prefix frontend|backend run …`.
 - `README.md` - Setup from scratch, environment variables, database, servers, checks, troubleshooting (French)
-- `.vscode/` - Shared editor settings (LF line endings, project TypeScript, Tailwind CSS) and recommended extensions
-- `backend/` - NestJS + Prisma + PostgreSQL API, a separate npm project with its own tooling; see `backend/AGENTS.md` and `backend/README.md`. Excluded from Tailwind scanning (`@source not` in `src/index.css`) and from the root formatter (`.prettierignore`).
+- `.figma/` - Figma Make tooling, kept at the root on purpose (Figma expects it there). `frontend/vite.config.ts` reads `.figma/make/site.json`. Its scripts still call `pnpm` at the root; the project itself uses npm (see README, "Figma Make").
+- `.mise.toml` - Toolchain version (Node.js 24). The project uses **npm** (no pnpm); `engines` in every `package.json` requires Node ^24.15 and npm >=11
+- `.gitattributes` (LF line endings), `.gitignore` (applies to both applications)
+- `.vscode/` - Shared editor settings (LF, TypeScript from `frontend/node_modules`, Tailwind CSS) and recommended extensions
 
-### Conventions
+## Rules
 
-- Dependency direction: `types` / `lib` / `data` ← `components` ← `features` ← `pages` ← `App`. Never import `App` or `pages` from lower layers (avoids circular imports).
-- Named exports. A `.tsx` file exports only components; constants go in `.ts` files (required by React Fast Refresh).
-- Imports without file extensions.
-
-## Testing
-
-- `npm run check` runs every check before a commit: `check:front` (oxfmt, `tsc --noUnusedLocals`, tests, build) then `check:api` (backend Prettier, tsc, oxlint, unit + e2e tests, build; PostgreSQL must be running). Root `npm run db:up` and `npm run dev:api` start the database and the API.
-
-- `npm test` runs Vitest once; `npm run test:watch` re-runs on save. Both go through `scripts/vitest.mjs`, which works around a Windows issue (lowercase drive letter `c:\` makes Vitest load twice).
-- `src/App.render.test.tsx` compares each screen with the HTML snapshots in `src/__snapshots__/pages/`. Any rendering change fails the test; update snapshots with `npm test -- -u` only for intended design changes, then review `git diff`.
-- `src/App.flows.test.tsx` covers user journeys (search, apply, publish, drafts, closing, navigation, admin). Pure logic is tested next to its file (`*.test.ts`).
-- UI tests import only `App` and navigate like a user, so moving components does not require changing tests.
-- Protected spaces (`candidate`, `company`, `admin`) require a session with the matching role (`PROTECTED_PAGES` in `src/types/auth.ts`); otherwise `App` redirects to login or to the user's own space. In tests use `renderApp({ as: "COMPANY" })` (session already open) or `loginWithForm(role)` (real form). The fake API checks the CSRF header and `credentials: "include"`; its demo accounts use `TEST_PASSWORD`.
-- UI tests never call the real backend: `setupAppTest()` replaces `fetch` with `src/test/fakeApi.ts`, which serves real API responses captured in `src/test/fixtures/` and applies the same filters. `renderApp()` and `goTo()` are async and wait for requests (`settle()`). `installFakeApi({ down: true })` or `{ offersStatus: 500 }` simulates failures. Recapture the fixtures with `curl` if the seed or the API response shape changes.
-
-## Dependencies
-
-- Runtime: React 19 and React DOM 19
-- Styling: Tailwind CSS v4 with the `@tailwindcss/vite` plugin
-- Build tooling: Vite 8, TypeScript 5.7, and `@vitejs/plugin-react`
-- Testing: Vitest, jsdom, Testing Library
-- Formatting: oxfmt (`src/__snapshots__/` is excluded via `.prettierignore`)
-
-## Styling
-
-This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin configured in `vite.config.ts`. `src/index.css` imports Tailwind with `@import 'tailwindcss';`. Use Tailwind utility classes directly in JSX and put global CSS or Tailwind v4 theme customization in `src/index.css`. This scaffold does not need a Tailwind config file or PostCSS config.
-
-`src/main.tsx` imports `src/index.css`, so global font wiring belongs in `src/index.css`. Keep CSS `@import` statements first, then add any `@font-face` rules and font-family defaults there.
-
-Tailwind emits utility classes in `@layer utilities`, and CSS outside any cascade layer overrides every layer regardless of specificity. Put global element styles, such as resets and defaults for `body`, headings, `button`, or `input`, inside `@layer base { ... }` so utility classes on those elements still apply. Tailwind's Preflight already applies `box-sizing: border-box`, removes default margins, and sets `font: inherit` on form controls, so do not repeat those rules.
+- Never import code across the two applications: they only talk over HTTP (`VITE_API_URL` → `/api`, CORS allowed by `CORS_ORIGIN` in `backend/.env`).
+- Frontend variables (`frontend/.env`, `VITE_*` only) end up in the browser: never put secrets there. Secrets live only in `backend/.env`. Both `.env` files are git-ignored; document variables in each `.env.example`.
+- Keep the ports: frontend 8443, API 3001, PostgreSQL 5434.
+- Before a commit, run `npm run check` at the root (PostgreSQL must be running for the backend e2e tests).

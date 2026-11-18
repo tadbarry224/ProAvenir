@@ -1,40 +1,17 @@
 {
-  "name": "figma-make-app",
+  "name": "proavenir",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "description": "Raccourcis de commandes : le frontend (frontend/) et le backend (backend/) sont deux projets npm distincts, sans dépendance à la racine.",
   "scripts": {
-    "dev": "vite",
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "dev": "npm --prefix frontend run dev",
     "dev:api": "npm --prefix backend run start:dev",
     "db:up": "npm --prefix backend run db:up",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "node scripts/vitest.mjs run",
-    "test:watch": "node scripts/vitest.mjs",
-    "format": "oxfmt",
+    "build": "npm --prefix frontend run build && npm --prefix backend run build",
     "check": "npm run check:front && npm run check:api",
-    "check:front": "oxfmt --check && tsc --noEmit --noUnusedLocals && npm test && npm run build",
+    "check:front": "npm --prefix frontend run check",
     "check:api": "npm --prefix backend run check"
-  },
-  "dependencies": {
-    "lucide-react": "^1.72.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
-    "@testing-library/dom": "^10.4.2",
-    "@testing-library/react": "^16.3.3",
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^6.0.0",
-    "jsdom": "^31.0.0",
-    "oxfmt": "^0.76.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.0",
-    "vite": "^8.0.5",
-    "vitest": "^5.0.5"
   },
   "engines": {
     "node": "^24.15.0",

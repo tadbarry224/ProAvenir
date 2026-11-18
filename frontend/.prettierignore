@@ -1,5 +1,2 @@
 # Fichiers générés automatiquement par les tests (ne pas reformater)
 src/__snapshots__/
-
-# Le backend a son propre formateur (Prettier, voir backend/.prettierrc)
-backend/

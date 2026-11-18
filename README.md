@@ -23,6 +23,7 @@ valide les entreprises.
 - [Authentification et sécurité](#authentification-et-sécurité)
 - [Démarrer les serveurs](#démarrer-les-serveurs)
 - [Tests et vérifications](#tests-et-vérifications)
+- [Figma Make](#figma-make)
 - [Dépannage](#dépannage)
 
 ## Architecture
@@ -36,21 +37,35 @@ valide les entreprises.
 │ React 19 · Vite 8       │  /api/offers…    │ NestJS 12 · Prisma 7    │  (Prisma)  │ conteneur Docker     │
 │ TypeScript · Tailwind 4 │                  │ http://localhost:3001   │            │ 127.0.0.1:5434       │
 └─────────────────────────┘                  └─────────────────────────┘            └──────────────────────┘
-   dossier racine (src/)                        dossier backend/                     volume proavenir-pgdata
+   dossier frontend/                            dossier backend/                     volume proavenir-pgdata
+```
+
+```
+ProAvenir/
+├── frontend/          application React (src/, public/, index.html, configs Vite/TS/Vitest, .env)
+├── backend/           API NestJS (src/, prisma/, test/, docker-compose.yml, .env)
+├── .figma/            outils Figma Make (laissés à la racine, voir « Figma Make »)
+├── .vscode/           réglages partagés de l'éditeur
+├── package.json       raccourcis de commandes (aucune dépendance)
+├── README.md · AGENTS.md · CLAUDE.md
+└── .gitattributes · .gitignore · .mise.toml
 ```
 
 | Partie          | Dossier           | Rôle                                                                         |
 | --------------- | ----------------- | ---------------------------------------------------------------------------- |
-| Frontend        | `src/`            | Interface (pages, composants). Appelle l'API via `src/services/`.            |
+| Frontend        | `frontend/`       | Interface (pages, composants). Appelle l'API via `frontend/src/services/`.   |
 | Backend         | `backend/`        | API REST sous `/api` : règles métier, validation, sécurité, accès à la base. |
 | Base de données | `backend/prisma/` | Modèle (`schema.prisma`), migrations SQL versionnées, données de départ.     |
 
-Le frontend et le backend sont **deux projets npm distincts**, chacun avec son
-`package.json` et son `package-lock.json`. La documentation détaillée se trouve dans :
+Le frontend et le backend sont **deux applications indépendantes** : chacune a son
+`package.json`, son `package-lock.json`, son `node_modules` et son `.env`, et s'installe, se lance,
+se teste et se compile séparément. Elles ne communiquent que par HTTP. Le `package.json` de la
+racine ne contient **aucune dépendance** : seulement des raccourcis qui appellent l'une ou l'autre.
+La documentation détaillée se trouve dans :
 
 - [`backend/README.md`](backend/README.md) : API, base de données, commandes du backend ;
-- [`AGENTS.md`](AGENTS.md) et [`backend/AGENTS.md`](backend/AGENTS.md) : structure du code et
-  conventions.
+- [`AGENTS.md`](AGENTS.md), [`frontend/AGENTS.md`](frontend/AGENTS.md) et
+  [`backend/AGENTS.md`](backend/AGENTS.md) : structure du code et conventions.
 
 ### API disponible
 
@@ -93,12 +108,13 @@ Toutes les commandes partent du **dossier racine** du projet, sauf indication co
 git clone <adresse-du-dépôt> ProAvenir
 cd ProAvenir
 
-# 2. Installer les dépendances (frontend puis backend)
-npm install
+# 2. Installer les dépendances de chaque application (rien à installer à la racine)
+npm --prefix frontend install
 npm --prefix backend install
+#    (raccourci équivalent : npm run install:all)
 
 # 3. Créer les fichiers de configuration locaux (jamais versionnés)
-cp .env.example .env
+cp frontend/.env.example frontend/.env
 cp backend/.env.example backend/.env
 #    puis, dans backend/.env, remplacer :
 #    - les deux « change-me » de la base par un même mot de passe ;
@@ -116,7 +132,8 @@ npm --prefix backend run db:seed
 npm run check
 ```
 
-> Sous Windows (PowerShell), `cp` fonctionne. Vous pouvez aussi utiliser `Copy-Item .env.example .env`.
+> Sous Windows (PowerShell), `cp` fonctionne. Vous pouvez aussi utiliser
+> `Copy-Item frontend/.env.example frontend/.env`.
 
 Pour générer un mot de passe solide pour la base, puis un secret pour `JWT_ACCESS_SECRET` :
 
@@ -127,9 +144,11 @@ node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'
 
 ## Variables d'environnement
 
-Deux fichiers `.env`, **jamais envoyés dans Git** (seuls les modèles `.env.example` le sont).
+Deux fichiers `.env`, un par application, **jamais envoyés dans Git** (seuls les modèles
+`.env.example` le sont). Il n'y a **pas de `.env` à la racine**. Les secrets (base, JWT) ne
+vont que dans `backend/.env`.
 
-### Frontend : `.env` (racine)
+### Frontend : `frontend/.env`
 
 | Variable       | Exemple                     | Rôle                                       |
 | -------------- | --------------------------- | ------------------------------------------ |
@@ -241,16 +260,21 @@ reste techniquement valable jusqu'à son expiration (15 min au plus), mais le fr
 
 ## Démarrer les serveurs
 
-Il faut **deux terminaux**, tous deux ouverts au dossier racine :
+Il faut **deux terminaux**, un par application :
 
 ```bash
-# Terminal 1 : base de données (si elle n'est pas déjà démarrée), puis API
-npm run db:up
-npm run dev:api        # API sur http://localhost:3001/api (redémarre à chaque modification)
+# Terminal 1 : backend (dossier backend/)
+cd backend
+npm run db:up          # PostgreSQL sur 127.0.0.1:5434 (si la base n'est pas déjà démarrée)
+npm run start:dev      # API sur http://localhost:3001/api (redémarre à chaque modification)
 
-# Terminal 2 : frontend
+# Terminal 2 : frontend (dossier frontend/)
+cd frontend
 npm run dev            # application sur http://localhost:8443
 ```
+
+Depuis la racine, les raccourcis `npm run db:up`, `npm run dev:api` et `npm run dev` font la
+même chose.
 
 Vérifications rapides :
 
@@ -262,31 +286,55 @@ Pour arrêter : `Ctrl + C` dans chaque terminal. La base peut rester allumée.
 
 ## Tests et vérifications
 
-| Commande (racine)     | Contenu                                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------------------- |
-| `npm run check`       | **Toutes les vérifications** du frontend puis du backend. À lancer avant chaque commit.                  |
-| `npm run check:front` | Frontend : formatage (oxfmt), TypeScript, tests (Vitest), build                                          |
-| `npm run check:api`   | Backend : formatage (Prettier), TypeScript, lint (oxlint), tests unitaires, tests de bout en bout, build |
-| `npm test`            | Tests du frontend seulement                                                                              |
-| `npm run test:watch`  | Tests du frontend, relancés à chaque enregistrement                                                      |
-| `npm run format`      | Formate le code du frontend                                                                              |
+| Commande                          | Dossier     | Contenu                                                                                        |
+| --------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| `npm run check`                   | racine      | **Toutes les vérifications** du frontend puis du backend. À lancer avant chaque commit.        |
+| `npm run check:front`             | racine      | Raccourci de `npm run check` dans `frontend/`                                                  |
+| `npm run check:api`               | racine      | Raccourci de `npm run check` dans `backend/`                                                   |
+| `npm run build`                   | racine      | Build du frontend (`frontend/dist/`) puis du backend (`backend/dist/`)                         |
+| `npm run check`                   | `frontend/` | Formatage (oxfmt), TypeScript, tests (Vitest), build                                           |
+| `npm test` / `npm run test:watch` | `frontend/` | Tests du frontend (une fois / à chaque enregistrement)                                         |
+| `npm run format`                  | `frontend/` | Formate le code du frontend                                                                    |
+| `npm run build`                   | `frontend/` | Build de production dans `frontend/dist/`                                                      |
+| `npm run check`                   | `backend/`  | Formatage (Prettier), TypeScript, lint (oxlint), tests unitaires, tests de bout en bout, build |
+| `npm test` / `npm run test:e2e`   | `backend/`  | Tests unitaires / tests de bout en bout                                                        |
 
 À savoir :
 
 - Les **tests de bout en bout du backend** utilisent la vraie base : PostgreSQL doit être
   démarré et les données de départ chargées. Ils ne modifient pas les données existantes.
 - Les **tests du frontend** n'appellent jamais le vrai serveur : un faux serveur
-  (`src/test/fakeApi.ts`) renvoie de vraies réponses de l'API enregistrées.
-- Les **snapshots** (`src/__snapshots__/pages/`) enregistrent le HTML de chaque écran : tout
+  (`frontend/src/test/fakeApi.ts`) renvoie de vraies réponses de l'API enregistrées.
+- Les **snapshots** (`frontend/src/__snapshots__/pages/`) enregistrent le HTML de chaque écran : tout
   changement de rendu fait échouer les tests. Ne les mettez à jour (`npm test -- -u`) que pour
   un changement de design voulu, puis relisez `git diff`.
+
+## Figma Make
+
+Le dossier `.figma/` reste à la racine, car Figma Make l'attend à cet endroit.
+`frontend/vite.config.ts` y lit `.figma/make/site.json` (titre, favicon, langue de la page).
+Limites connues depuis la séparation :
+
+- les scripts `.figma/make/install` et `.figma/make/dev` appellent **pnpm** à la racine
+  (`pnpm install`, puis `pnpm run dev`). Le projet utilise npm. À la racine, il n'y a plus de
+  dépendance à installer, et `run dev` redirige vers `frontend/`. Les dépendances du frontend,
+  elles, ne sont **pas** installées par ces scripts ;
+- `.figma/make/dev.json` surveille le `package.json` de la racine, et non `frontend/package.json` ;
+- `.figma/make/deploy` et `deploy-preview` lancent la build à la racine puis publient le dossier
+  `dist/` **de la racine** (`--build-dir dist`), alors que la build du frontend est désormais
+  écrite dans `frontend/dist/`. Le déploiement par Figma Make n'est donc **pas utilisable** en
+  l'état ;
+- `.figma/make/format` appelle `pnpm run format` à la racine, où ce script n'existe plus
+  (le formatage se lance dans `frontend/` : `npm run format`) ;
+- un nouvel import du dépôt dans Figma Make n'a pas été testé avec cette organisation. Le
+  développement se fait en local avec npm, comme décrit ci-dessus.
 
 ## Dépannage
 
 | Symptôme                                                                        | Cause probable                                                                                | Solution                                                                               |
 | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | Page Offres : « Offres indisponibles » / « Impossible de joindre le serveur »   | L'API n'est pas lancée, ou la base est arrêtée                                                | Lancer `npm run db:up` puis `npm run dev:api`, puis cliquer sur « Réessayer »          |
-| « L'adresse du serveur n'est pas configurée (VITE_API_URL manquante) »          | Le fichier `.env` racine est absent                                                           | `cp .env.example .env`, puis redémarrer `npm run dev`                                  |
+| « L'adresse du serveur n'est pas configurée (VITE_API_URL manquante) »          | Le fichier `frontend/.env` est absent                                                         | `cp frontend/.env.example frontend/.env`, puis redémarrer `npm run dev`                |
 | Erreur CORS dans la console du navigateur                                       | L'adresse du frontend n'est pas dans `CORS_ORIGIN`                                            | L'ajouter dans `backend/.env`, puis redémarrer l'API                                   |
 | `EADDRINUSE` (3001) ou `Port 8443 is already in use`                            | Un ancien serveur tourne encore                                                               | Fermer l'autre terminal, ou trouver le processus : `netstat -ano \| findstr :3001`     |
 | `npm run db:up` échoue : « Cannot connect to the Docker daemon »                | Docker Desktop n'est pas démarré                                                              | Lancer Docker Desktop, attendre qu'il soit prêt, recommencer                           |

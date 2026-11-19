@@ -11,7 +11,7 @@ import type { CreateCompanyOfferDto } from './dto/create-company-offer.dto.js';
  */
 describe('CompanyOffersController', () => {
   const reflector = new Reflector();
-  const ROUTES = ['list', 'create'] as const;
+  const ROUTES = ['list', 'create', 'changeStatus'] as const;
 
   // Même lecture que les gardes globales : décorateurs de la méthode, puis de la classe.
   const metadata = (route: (typeof ROUTES)[number], key: string) => {
@@ -39,9 +39,11 @@ describe('CompanyOffersController', () => {
   it('transmet uniquement l’identifiant de l’utilisateur connecté au service', async () => {
     const listMine = vi.fn().mockResolvedValue({ data: [], meta: {} });
     const create = vi.fn().mockResolvedValue({});
+    const changeStatus = vi.fn().mockResolvedValue({});
     const controller = new CompanyOffersController({
       listMine,
       create,
+      changeStatus,
     } as unknown as CompanyOffersService);
     const user = { id: 'user-1', role: 'COMPANY' as const };
     const dto = { status: 'DRAFT' } as CreateCompanyOfferDto;
@@ -50,5 +52,8 @@ describe('CompanyOffersController', () => {
     await controller.create(user, dto);
     expect(listMine).toHaveBeenCalledWith('user-1');
     expect(create).toHaveBeenCalledWith('user-1', dto);
+
+    await controller.changeStatus(user, 'offer-1', { status: 'CLOSED' });
+    expect(changeStatus).toHaveBeenCalledWith('user-1', 'offer-1', 'CLOSED');
   });
 });

@@ -1,7 +1,9 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { apiError } from '../common/api-error.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { CompanyStatus } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { OFFER_ERROR_CODES } from './offer-rules.js';
 
 /** Entreprise de l'utilisateur connecté (lue en base, jamais fournie par le client). */
 export interface CurrentCompany {
@@ -12,6 +14,9 @@ export interface CurrentCompany {
 
 export const NO_COMPANY_MESSAGE =
   'Aucune entreprise n’est associée à ce compte.';
+
+const noCompany = () =>
+  apiError(403, OFFER_ERROR_CODES.noCompany, NO_COMPANY_MESSAGE);
 
 /** Client Prisma normal, ou client d'une transaction en cours ($transaction). */
 type Db = Pick<PrismaService, 'companyMember' | '$queryRaw'>;
@@ -40,7 +45,7 @@ export class CompanyMembershipService {
       where: { userId },
       select: { company: { select: { id: true, name: true, status: true } } },
     });
-    if (!membership) throw new ForbiddenException(NO_COMPANY_MESSAGE);
+    if (!membership) throw noCompany();
     return membership.company;
   }
 
@@ -57,7 +62,7 @@ export class CompanyMembershipService {
     const company = await this.currentCompany(userId, tx);
     const [locked] = await tx.$queryRaw<{ status: CompanyStatus }[]>`
       SELECT "status" FROM "Company" WHERE "id" = ${company.id}::uuid FOR SHARE`;
-    if (!locked) throw new ForbiddenException(NO_COMPANY_MESSAGE);
+    if (!locked) throw noCompany();
     return { ...company, status: locked.status };
   }
 }

@@ -305,6 +305,39 @@ describe('Création d’offres par l’entreprise connectée (e2e)', () => {
       );
     });
 
+    it('format commun : code VALIDATION_FAILED et champ de chaque erreur (DTO et règles)', async () => {
+      // Erreur du DTO (format) et erreurs des règles métier : même code, même forme.
+      const dtoError = await createAs(USER.a, {
+        ...draftBody,
+        title: 'ab',
+        featured: true,
+      }).expect(400);
+      expect(dtoError.body).toMatchObject({
+        statusCode: 400,
+        error: 'Bad Request',
+        code: 'VALIDATION_FAILED',
+      });
+      expect(
+        dtoError.body.details.map((d: { field: string }) => d.field).sort(),
+      ).toEqual(['featured', 'title']);
+
+      const rulesError = await createAs(USER.a, {
+        ...publishBody,
+        cityId: 'atlantis',
+        deadline: '2026-11-19',
+      }).expect(400);
+      expect(rulesError.body).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        details: [
+          { field: 'cityId', message: 'Choisissez une ville dans la liste.' },
+          {
+            field: 'deadline',
+            message: 'La date limite ne peut pas être dans le passé.',
+          },
+        ],
+      });
+    });
+
     it('publication avec une date limite passée', async () => {
       await expect400({ ...publishBody, deadline: '2026-11-19' }, [
         'La date limite ne peut pas être dans le passé.',
@@ -387,6 +420,7 @@ describe('Création d’offres par l’entreprise connectée (e2e)', () => {
         title: `${TAG} Publication en attente`,
       }).expect(403);
       expect(res.body.message).toBe(PERMISSION_MESSAGES.pendingPublish);
+      expect(res.body.code).toBe('COMPANY_NOT_APPROVED');
       expect(await countOffers()).toBe(before);
       expect(await publicTitles()).not.toContain(
         `${TAG} Publication en attente`,
@@ -400,6 +434,7 @@ describe('Création d’offres par l’entreprise connectée (e2e)', () => {
       const before = await countOffers();
       const res = await createAs(USER.rejected, body).expect(403);
       expect(res.body.message).toBe(PERMISSION_MESSAGES.rejected);
+      expect(res.body.code).toBe('COMPANY_REJECTED');
       expect(await countOffers()).toBe(before);
     });
 

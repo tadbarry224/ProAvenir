@@ -1,7 +1,22 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { ConfigService } from '@nestjs/config';
+import { validationException } from './common/api-error.js';
 import type { EnvironmentVariables } from './config/env.validation.js';
+
+/**
+ * Options du ValidationPipe global (exportées pour que les tests unitaires des
+ * DTO valident exactement comme l'application) :
+ * - whitelist : ignore les champs non déclarés ; forbidNonWhitelisted : les refuse (400) ;
+ * - transform : applique les @Transform (ex. suppression des espaces) ;
+ * - exceptionFactory : erreur 400 au format commun (code VALIDATION_FAILED + details).
+ */
+export const validationPipeOptions = {
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  exceptionFactory: validationException,
+};
 
 /**
  * Réglages communs de l'application HTTP.
@@ -15,16 +30,8 @@ export function configureApp(app: INestApplication): void {
   // Toutes les routes commencent par /api (ex. GET /api/health).
   app.setGlobalPrefix('api');
 
-  // Validation automatique des paramètres reçus (query, body) d'après les DTO :
-  // - whitelist : ignore les champs non déclarés ; forbidNonWhitelisted : les refuse (400) ;
-  // - transform : applique les @Transform (ex. suppression des espaces).
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  // Validation automatique des paramètres reçus (query, body) d'après les DTO.
+  app.useGlobalPipes(new ValidationPipe(validationPipeOptions));
 
   // Lit les cookies reçus (cookie de rafraîchissement de session).
   app.use(cookieParser());

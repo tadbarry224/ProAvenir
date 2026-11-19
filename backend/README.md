@@ -114,6 +114,7 @@ Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics so
 | --- | --- | --- |
 | `GET /api/companies/me/offers` | rôle `COMPANY` | `{ data: [offre…], meta: { total, today, company: { name, status } } }` |
 | `POST /api/companies/me/offers` | rôle `COMPANY` | 201 + l'offre créée (même forme qu'un élément de `data`) |
+| `PATCH /api/companies/me/offers/:id/status` | rôle `COMPANY` | `{ status: "PUBLISHED" \| "CLOSED" }` → 200 + l'offre à jour |
 
 - Renvoie **toutes** les offres de l'entreprise connectée (brouillons, publiées, clôturées,
   expirées), les plus récentes d'abord, avec le **nombre réel de candidatures**
@@ -147,6 +148,60 @@ Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics so
 - La création se fait dans une transaction qui **verrouille la ligne de l'entreprise**
   (`SELECT … FOR SHARE`) : un refus par l'administration au même moment ne peut pas laisser
   passer une publication.
+
+**Changement de statut** (`PATCH …/:id/status`) :
+
+| Statut actuel | Demande | Effet | Entreprise |
+| --- | --- | --- | --- |
+| `DRAFT` | `PUBLISHED` | publier : `publishedAt` = maintenant | `APPROVED` |
+| `PUBLISHED` | `CLOSED` | clôturer (même expirée) : `closedAt` = maintenant | `APPROVED`, `PENDING` |
+| `CLOSED` | `PUBLISHED` | rouvrir : `publishedAt` d'origine conservé, `closedAt` effacé | `APPROVED` |
+
+- Toute autre transition : **409** (clôturer un brouillon, republier, reclôturer). Le retour au
+  brouillon n'existe pas (`status: "DRAFT"` → 400).
+- Publier ou rouvrir exige le même contenu qu'à la création (description ≥ 50 caractères, date
+  limite aujourd'hui ou plus tard) : sinon **409**. Une offre expirée ne peut donc pas être
+  rouverte (elle ne redeviendrait de toute façon pas visible).
+- `PENDING` : publier ou rouvrir → **403**. `REJECTED` : aucun changement (**403**, lecture seule).
+- Identifiant mal formé : **400**. Offre inexistante **ou d'une autre entreprise** : **404**
+  (même réponse, pour ne pas révéler l'existence des offres des autres).
+- Transaction : ligne de l'entreprise verrouillée (`FOR SHARE`), puis ligne de l'offre
+  (`FOR UPDATE`). Deux demandes simultanées sur la même offre passent l'une après l'autre : la
+  seconde voit le résultat de la première (ex. double clôture : 200 puis 409).
+
+## Format des erreurs
+
+Les erreurs métier ont un **code stable** (à utiliser côté frontend) et, si elles portent sur
+des champs, des **détails structurés** (`src/common/api-error.ts`) :
+
+```json
+{
+  "statusCode": 409,
+  "error": "Conflict",
+  "code": "OFFER_NOT_PUBLISHABLE",
+  "message": ["La date limite est obligatoire pour publier."],
+  "details": [{ "field": "deadline", "message": "La date limite est obligatoire pour publier." }]
+}
+```
+
+`message` est toujours un texte prêt à afficher (une chaîne, ou une liste s'il y a plusieurs
+erreurs). Les erreurs de validation des DTO gardent leur `message` habituel et reçoivent en
+plus `code: "VALIDATION_FAILED"` et `details` (toutes les routes).
+
+| Code | HTTP | Signification |
+| --- | --- | --- |
+| `VALIDATION_FAILED` | 400 | Formulaire invalide (format, ville/domaine inconnus, contrat, conditions de publication à la création) ; `details` par champ |
+| `INVALID_OFFER_ID` | 400 | Identifiant d'offre mal formé dans l'adresse |
+| `NO_COMPANY` | 403 | Compte entreprise rattaché à aucune entreprise |
+| `COMPANY_REJECTED` | 403 | Entreprise refusée : lecture seule |
+| `COMPANY_NOT_APPROVED` | 403 | Entreprise en attente : publication et réouverture impossibles |
+| `OFFER_NOT_FOUND` | 404 | Offre inexistante ou d'une autre entreprise |
+| `INVALID_STATUS_TRANSITION` | 409 | Changement impossible depuis l'état actuel (brouillon → clôturée, déjà publiée, déjà clôturée) |
+| `OFFER_NOT_PUBLISHABLE` | 409 | Publication/réouverture d'une offre incomplète ou expirée ; `details` par champ |
+| `SESSION_ROTATED` | 401 | (authentification) session renouvelée par un autre onglet |
+
+Les refus de la garde globale (401 « Connexion requise. », 403 « Accès réservé. ») gardent le
+format NestJS standard, sans `code` : le statut HTTP suffit.
 
 ## Tests et vérifications
 

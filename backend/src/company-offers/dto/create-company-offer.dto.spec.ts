@@ -1,15 +1,13 @@
 import { ValidationPipe } from '@nestjs/common';
+import { validationPipeOptions } from '../../app.setup.js';
+import type { ApiErrorBody } from '../../common/api-error.js';
 import { CreateCompanyOfferDto } from './create-company-offer.dto.js';
 
 /**
- * Valide le corps exactement comme l'application (même configuration que
+ * Valide le corps exactement comme l'application (mêmes options que
  * app.setup.ts) : renvoie le DTO nettoyé, ou la liste des messages d'erreur.
  */
-const pipe = new ValidationPipe({
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transform: true,
-});
+const pipe = new ValidationPipe(validationPipeOptions);
 
 async function validateBody(body: Record<string, unknown>) {
   try {
@@ -17,12 +15,10 @@ async function validateBody(body: Record<string, unknown>) {
       type: 'body',
       metatype: CreateCompanyOfferDto,
     })) as CreateCompanyOfferDto;
-    return { dto, errors: [] as string[] };
+    return { dto, errors: [] as string[], body: null };
   } catch (error) {
-    const response = (
-      error as { getResponse: () => { message: string[] } }
-    ).getResponse();
-    return { dto: null, errors: response.message };
+    const body = (error as { getResponse: () => ApiErrorBody }).getResponse();
+    return { dto: null, errors: body.message as string[], body };
   }
 }
 
@@ -92,6 +88,21 @@ describe('CreateCompanyOfferDto', () => {
   ])('refuse %o', async (override, expected) => {
     const { errors } = await validateBody({ ...minimal, ...override });
     expect(errors.join(' | ')).toContain(expected);
+  });
+
+  it('renvoie le code VALIDATION_FAILED et le champ de chaque erreur', async () => {
+    const { body } = await validateBody({
+      ...minimal,
+      title: 'ab',
+      deadline: '2026-02-30',
+      featured: true,
+    });
+    expect(body).toMatchObject({ statusCode: 400, code: 'VALIDATION_FAILED' });
+    expect(body?.details?.map((detail) => detail.field).sort()).toEqual([
+      'deadline',
+      'featured',
+      'title',
+    ]);
   });
 
   it('accepte les détails du contrat facultatifs, y compris null', async () => {

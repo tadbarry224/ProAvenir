@@ -3,17 +3,21 @@
  * Le fournisseur (AuthProvider.tsx) est placé dans App.
  */
 import { createContext, useContext } from "react";
+import type { AccessTokenSource } from "../../services/apiClient";
 import type { LoginInput, RegisterInput, SessionUser } from "../../services/authService";
 
 export type AuthStatus =
   /** Vérification de la session en cours (au chargement de la page). */
   "loading" | "authenticated" | "anonymous";
 
-export type AuthContextValue = {
+/**
+ * `getAccessToken` / `renewAccessToken` (AccessTokenSource) : à passer tels quels
+ * aux services des routes protégées (ex. companyOffersService), qui renouvellent
+ * la session si le jeton a expiré.
+ */
+export type AuthContextValue = AccessTokenSource & {
   status: AuthStatus;
   user: SessionUser | null;
-  /** Jeton d'accès courant (en mémoire uniquement), pour les appels protégés. */
-  getAccessToken: () => string | null;
   login: (input: LoginInput) => Promise<SessionUser>;
   register: (input: RegisterInput) => Promise<SessionUser>;
   logout: () => Promise<void>;

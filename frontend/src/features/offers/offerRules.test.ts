@@ -21,7 +21,7 @@ const TODAY = "2026-11-12";
 const NOW = new Date("2026-11-12T10:00:00.000Z");
 
 const baseOffer: Offer = {
-  id: 100,
+  id: "100",
   companyId: 1,
   status: "PUBLISHED",
   title: "Assistant·e administratif·ve",
@@ -93,13 +93,13 @@ describe("buildOffer", () => {
   const input = { ...toOfferFormValues(baseOffer), skills: ["Excel"] };
 
   it("une offre publiée reçoit une date de publication", () => {
-    const offer = buildOffer(input, { id: 1, companyId: 3, status: "PUBLISHED", now: NOW });
+    const offer = buildOffer(input, { id: "1", companyId: 3, status: "PUBLISHED", now: NOW });
     assert.equal(offer.companyId, 3);
     assert.equal(offer.publishedAt, NOW.toISOString());
   });
 
   it("un brouillon n'a pas de date de publication", () => {
-    const offer = buildOffer(input, { id: 1, companyId: 3, status: "DRAFT", now: NOW });
+    const offer = buildOffer(input, { id: "1", companyId: 3, status: "DRAFT", now: NOW });
     assert.equal(offer.publishedAt, null);
     assert.equal(offer.createdAt, NOW.toISOString());
   });
@@ -156,7 +156,9 @@ describe("changeStatus", () => {
 describe("cohérence des données fictives", () => {
   it("chaque offre fictive appartient à une entreprise existante", () => {
     const companyIds = new Set(mockCompanies.map((company) => company.id));
-    for (const offer of mockOffers) assert.ok(companyIds.has(offer.companyId), offer.title);
+    for (const offer of mockOffers) {
+      assert.ok(offer.companyId !== undefined && companyIds.has(offer.companyId), offer.title);
+    }
   });
 
   it("les identifiants des offres sont uniques", () => {

@@ -36,7 +36,7 @@ export function nextStatus(status: OfferStatus): OfferStatus {
 /** Crée une nouvelle offre à partir des données validées du formulaire. */
 export function buildOffer(
   input: OfferInput,
-  options: { id: number; companyId: number; status: OfferStatus; now: Date },
+  options: { id: string; companyId: number; status: OfferStatus; now: Date },
 ): Offer {
   const timestamp = options.now.toISOString();
   return {

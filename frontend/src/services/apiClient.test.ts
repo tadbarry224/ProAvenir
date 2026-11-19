@@ -4,7 +4,15 @@
  */
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { ApiError, apiGet, apiRequest, apiUrl } from "./apiClient";
+import {
+  ApiError,
+  apiGet,
+  apiRequest,
+  apiUrl,
+  authorizedRequest,
+  SESSION_EXPIRED_MESSAGE,
+  type AccessTokenSource,
+} from "./apiClient";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -117,5 +125,120 @@ describe("apiGet", () => {
     vi.useRealTimers();
     assert.ok(error instanceof ApiError);
     assert.match(error.message, /trop de temps/);
+  });
+});
+
+describe("détails d'erreur", () => {
+  it("lit les détails bien formés et ignore les autres", async () => {
+    respond(
+      {
+        code: "VALIDATION_FAILED",
+        message: ["Date invalide."],
+        details: [
+          { field: "deadline", message: "Date invalide." },
+          { field: 42, message: "ignoré" },
+          "ignoré",
+        ],
+      },
+      400,
+    );
+    const error = await apiGet("/x").catch((e: unknown) => e);
+    assert.ok(error instanceof ApiError);
+    assert.equal(error.code, "VALIDATION_FAILED");
+    assert.deepEqual(error.details, [{ field: "deadline", message: "Date invalide." }]);
+  });
+
+  it("liste vide quand l'API n'envoie pas de détails", async () => {
+    respond({ message: "Refusé." }, 403);
+    const error = await apiGet("/x").catch((e: unknown) => e);
+    assert.ok(error instanceof ApiError);
+    assert.deepEqual(error.details, []);
+  });
+});
+
+describe("authorizedRequest (routes protégées)", () => {
+  /** Session simulée : jetons successifs renvoyés par le renouvellement. */
+  function fakeSession(initial: string | null, renewed: (string | null)[] = []) {
+    let token = initial;
+    const renewAccessToken = vi.fn(async () => {
+      token = renewed.shift() ?? null;
+      return token;
+    });
+    const session: AccessTokenSource = { getAccessToken: () => token, renewAccessToken };
+    return { session, renewAccessToken };
+  }
+
+  /** fetch simulé : une réponse (statut, corps) par appel, dans l'ordre. */
+  function serverReplies(...replies: [number, unknown][]) {
+    const fetchMock = vi.fn(async () => {
+      const [status, body] = replies.shift() ?? [500, {}];
+      return new Response(JSON.stringify(body), { status });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const authorizations = () =>
+      fetchMock.mock.calls.map(
+        (call) =>
+          ((call as unknown as [string, RequestInit])[1].headers as Record<string, string>)
+            .Authorization,
+      );
+    return { fetchMock, authorizations };
+  }
+
+  it("envoie le jeton en mémoire dans l'en-tête Authorization (PATCH accepté)", async () => {
+    const { session, renewAccessToken } = fakeSession("jeton-1");
+    const { fetchMock, authorizations } = serverReplies([200, { ok: true }]);
+    const result = await authorizedRequest(session, "/x", { method: "PATCH", body: { a: 1 } });
+    assert.deepEqual(result, { ok: true });
+    assert.deepEqual(authorizations(), ["Bearer jeton-1"]);
+    assert.equal((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].method, "PATCH");
+    assert.equal(renewAccessToken.mock.calls.length, 0);
+  });
+
+  it("jeton refusé (401) : renouvelle la session une fois puis rejoue la requête", async () => {
+    const { session, renewAccessToken } = fakeSession("ancien", ["nouveau"]);
+    const { authorizations } = serverReplies([401, { message: "Connexion requise." }], [200, {}]);
+    await authorizedRequest(session, "/x");
+    assert.deepEqual(authorizations(), ["Bearer ancien", "Bearer nouveau"]);
+    assert.equal(renewAccessToken.mock.calls.length, 1);
+  });
+
+  it("sans jeton en mémoire : renouvelle d'abord (ex. après rechargement)", async () => {
+    const { session } = fakeSession(null, ["restauré"]);
+    const { authorizations } = serverReplies([200, {}]);
+    await authorizedRequest(session, "/x");
+    assert.deepEqual(authorizations(), ["Bearer restauré"]);
+  });
+
+  it("session impossible à renouveler : 401 « session expirée » sans appeler l'API", async () => {
+    const { session } = fakeSession(null, [null]);
+    const { fetchMock } = serverReplies();
+    await assert.rejects(authorizedRequest(session, "/x"), {
+      name: "ApiError",
+      status: 401,
+      message: SESSION_EXPIRED_MESSAGE,
+    });
+    assert.equal(fetchMock.mock.calls.length, 0);
+  });
+
+  it("toujours 401 après renouvellement : session expirée, pas de boucle", async () => {
+    const { session, renewAccessToken } = fakeSession("a", ["b", "c"]);
+    const { fetchMock } = serverReplies([401, {}], [401, {}], [200, {}]);
+    await assert.rejects(authorizedRequest(session, "/x"), {
+      status: 401,
+      message: SESSION_EXPIRED_MESSAGE,
+    });
+    assert.equal(fetchMock.mock.calls.length, 2);
+    assert.equal(renewAccessToken.mock.calls.length, 1);
+  });
+
+  it("les autres erreurs (403, 409…) remontent telles quelles, sans renouvellement", async () => {
+    const { session, renewAccessToken } = fakeSession("a");
+    serverReplies([409, { code: "INVALID_STATUS_TRANSITION", message: "Déjà clôturée." }]);
+    await assert.rejects(authorizedRequest(session, "/x"), {
+      status: 409,
+      code: "INVALID_STATUS_TRANSITION",
+      message: "Déjà clôturée.",
+    });
+    assert.equal(renewAccessToken.mock.calls.length, 0);
   });
 });

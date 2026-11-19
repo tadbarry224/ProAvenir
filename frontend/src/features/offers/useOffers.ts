@@ -30,7 +30,12 @@ export function useOffers(initialOffers: Offer[] = mockOffers) {
 
   /** Ajoute une offre ; les plus récentes apparaissent en premier. */
   const createOffer = (companyId: number, input: OfferInput, status: OfferStatus) => {
-    const offer = buildOffer(input, { id: Date.now(), companyId, status, now: new Date() });
+    const offer = buildOffer(input, {
+      id: String(Date.now()),
+      companyId,
+      status,
+      now: new Date(),
+    });
     setOffers((items) => [offer, ...items]);
     return offer;
   };
@@ -39,7 +44,7 @@ export function useOffers(initialOffers: Offer[] = mockOffers) {
    * Publier / Clôturer / Réouvrir.
    * Renvoie `null` si tout s'est bien passé, sinon le message d'erreur à afficher.
    */
-  const changeOfferStatus = (offerId: number): string | null => {
+  const changeOfferStatus = (offerId: string): string | null => {
     const offer = offers.find((item) => item.id === offerId);
     if (!offer) return "Cette offre est introuvable.";
     const result = changeStatus(offer, today, new Date());

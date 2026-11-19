@@ -59,7 +59,7 @@ type OfferViewSource = Pick<
   | "skills"
   | "featured"
   | "publishedAt"
-> & { id: number | string; city: string; domain: string; createdAt?: string };
+> & { id: string; city: string; domain: string; createdAt?: string };
 
 type CompanyView = Pick<Company, "name" | "logoColor"> & { initials?: string };
 
@@ -67,7 +67,7 @@ export function toJobView(offer: OfferViewSource, company: CompanyView | undefin
   const companyName = company?.name ?? "Entreprise";
   const typeLabel = OFFER_TYPE_LABELS[offer.type];
   return {
-    id: String(offer.id),
+    id: offer.id,
     title: offer.title,
     company: companyName,
     initials: company?.initials ?? initialsOf(companyName),

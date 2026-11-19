@@ -10,7 +10,7 @@ import { contractLabel, toJobView } from "./toJobView";
 const company: Company = { id: 4, name: "Fouta Conseil", initials: "FC", logoColor: "violet" };
 
 const offer: Offer = {
-  id: 7,
+  id: "7",
   companyId: 4,
   status: "PUBLISHED",
   title: "Stagiaire comptable",

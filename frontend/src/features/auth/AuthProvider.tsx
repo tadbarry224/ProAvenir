@@ -11,6 +11,7 @@
  * appliquée par l'API (gardes JwtAuthGuard et RolesGuard).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ApiError } from "../../services/apiClient";
 import * as authService from "../../services/authService";
 import type { AuthResponse, SessionUser } from "../../services/authService";
 import { AuthContext, type AuthContextValue, type AuthStatus } from "./authContext";
@@ -46,6 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clearSession],
   );
 
+  const applySessionToken = useCallback(
+    (response: AuthResponse): string => {
+      applySession(response);
+      return response.accessToken;
+    },
+    [applySession],
+  );
+
   // Restauration de la session au chargement de la page.
   useEffect(() => {
     let active = true;
@@ -68,6 +77,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       user,
       getAccessToken: () => accessToken.current,
+      // Renouvellement à la demande (jeton expiré ou refusé par l'API).
+      // Session refusée (401) → déconnexion locale et null ; autre erreur
+      // (réseau…) → remontée telle quelle, la session reste ouverte.
+      renewAccessToken: async () => {
+        try {
+          return applySessionToken(await authService.refreshSession());
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            clearSession();
+            return null;
+          }
+          throw error;
+        }
+      },
       login: async (input) => applySession(await authService.login(input)),
       register: async (input) => applySession(await authService.register(input)),
       logout: async () => {
@@ -79,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [status, user, applySession, clearSession],
+    [status, user, applySession, applySessionToken, clearSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -108,11 +108,14 @@ export type OfferInput = Omit<OfferFormValues, "skills"> & {
 
 /**
  * 3. L'offre enregistrée : les données + les informations ajoutées par le système.
- *    Plus tard, `id`, `createdAt` et `publishedAt` seront fournis par le backend.
+ *    Une offre de l'API (GET /api/companies/me/offers) est convertie dans ce même
+ *    format par `companyOfferFromApi` (features/offers/companyOfferMapping.ts).
  */
 export type Offer = OfferInput & {
-  id: number;
-  companyId: number; // l'entreprise propriétaire (future relation Offer → Company)
+  /** Identifiant texte : UUID pour une offre de l'API. */
+  id: string;
+  /** Entreprise propriétaire, pour les données fictives seulement (l'API la déduit de la session). */
+  companyId?: number;
   status: OfferStatus;
   createdAt: string; // date ISO complète
   publishedAt: string | null; // date de première publication, null pour un brouillon jamais publié
@@ -122,6 +125,13 @@ export type Offer = OfferInput & {
   workSchedule?: WorkSchedule | null;
   duration?: string | null; // « 3 mois », « 12 mois »
   featured?: boolean; // badge « À la une »
+  // --- Calculés par l'API (absents des données fictives) ---
+  /** Date de clôture (ISO), null si l'offre n'est pas clôturée. */
+  closedAt?: string | null;
+  /** Nombre RÉEL de candidatures reçues (PostgreSQL). */
+  applicationsCount?: number;
+  /** Visible en ce moment dans la liste publique (règle appliquée par le serveur). */
+  publiclyVisible?: boolean;
 };
 
 /**

@@ -51,7 +51,7 @@ export function CompanyDashboard({
   updateStatus: (name: string, status: string) => void;
   onCreateOffer: (input: OfferInput, status: OfferStatus) => void;
   /** Renvoie null si le changement a réussi, sinon le message d'erreur. */
-  onChangeOfferStatus: (offerId: number) => string | null;
+  onChangeOfferStatus: (offerId: string) => string | null;
 }) {
   const [active, setActive] = useState("Aperçu");
   const [publish, setPublish] = useState(false);

@@ -10,7 +10,7 @@ import type { Offer } from "../types/offer";
 
 export const mockOffers: Offer[] = [
   {
-    id: 1,
+    id: "1",
     companyId: 1,
     status: "PUBLISHED",
     title: "Assistant·e marketing digital",
@@ -29,7 +29,7 @@ export const mockOffers: Offer[] = [
     featured: true,
   },
   {
-    id: 2,
+    id: "2",
     companyId: 2,
     status: "PUBLISHED",
     title: "Développeur·se web junior",
@@ -47,7 +47,7 @@ export const mockOffers: Offer[] = [
     skills: ["React", "TypeScript", "Git", "Esprit d’équipe"],
   },
   {
-    id: 3,
+    id: "3",
     companyId: 3,
     status: "PUBLISHED",
     title: "Chargé·e de clientèle",
@@ -65,7 +65,7 @@ export const mockOffers: Offer[] = [
     skills: ["Relation client", "Organisation", "Français", "Pack Office"],
   },
   {
-    id: 4,
+    id: "4",
     companyId: 4,
     status: "PUBLISHED",
     title: "Stagiaire comptable",
@@ -83,7 +83,7 @@ export const mockOffers: Offer[] = [
     skills: ["Comptabilité", "Excel", "Rigueur", "Confidentialité"],
   },
   {
-    id: 5,
+    id: "5",
     companyId: 5,
     status: "PUBLISHED",
     title: "Assistant·e ressources humaines",
@@ -101,7 +101,7 @@ export const mockOffers: Offer[] = [
     skills: ["Administration", "Excel", "Écoute", "Discrétion"],
   },
   {
-    id: 6,
+    id: "6",
     companyId: 6,
     status: "PUBLISHED",
     title: "Agent·e logistique",

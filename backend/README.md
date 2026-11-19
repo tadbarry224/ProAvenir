@@ -117,7 +117,7 @@ clôturée, expirée ou d'une entreprise non validée donne la **même** répons
 
 | Route | Accès | Réponse |
 | --- | --- | --- |
-| `GET /api/companies/me/offers` | rôle `COMPANY` | `{ data: [offre…], meta: { total, today, company: { name, status } } }` |
+| `GET /api/companies/me/offers` | rôle `COMPANY` | `{ data: [offre…], meta: { total, today, company: { name, status, rejectionReason } } }` (motif du refus montré à l’entreprise, null sinon) |
 | `POST /api/companies/me/offers` | rôle `COMPANY` | 201 + l'offre créée (même forme qu'un élément de `data`) |
 | `PATCH /api/companies/me/offers/:id/status` | rôle `COMPANY` | `{ status: "PUBLISHED" \| "CLOSED" }` → 200 + l'offre à jour |
 

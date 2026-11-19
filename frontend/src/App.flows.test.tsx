@@ -1039,3 +1039,51 @@ describe("Adresses des pages (React Router)", () => {
     screen.getByText("Kamsar Solutions · Compte vérifié");
   });
 });
+
+describe("Statut de l'entreprise (vu par l'entreprise)", () => {
+  setupAppTest();
+
+  const PENDING_BANNER = /Votre entreprise est en attente de validation\./;
+  const REJECTED_BANNER = /Votre entreprise a été refusée par l’administration\./;
+
+  it("en attente : un bandeau explique qu'on peut préparer des brouillons", async () => {
+    installFakeApi({ session: "COMPANY", companyStatus: "PENDING" });
+    await renderApp();
+    await goTo("Espace entreprise");
+    screen.getByText(PENDING_BANNER);
+    screen.getByText("Kamsar Solutions · En attente de validation");
+  });
+
+  it("refusée : le motif de l'administration est affiché", async () => {
+    installFakeApi({
+      session: "COMPANY",
+      companyStatus: "REJECTED",
+      rejectionReason: "Numéro RCCM manquant.",
+    });
+    await renderApp();
+    await goTo("Espace entreprise");
+    screen.getByText(REJECTED_BANNER);
+    screen.getByText("Motif : Numéro RCCM manquant.");
+  });
+
+  it("validée : aucun bandeau", async () => {
+    await renderApp({ as: "COMPANY" });
+    await goTo("Espace entreprise");
+    assert.equal(screen.queryByText(PENDING_BANNER), null);
+    assert.equal(screen.queryByText(REJECTED_BANNER), null);
+  });
+
+  it("une validation pendant la session s'affiche à la réouverture de l'espace", async () => {
+    const api = installFakeApi({ session: "COMPANY", companyStatus: "PENDING" });
+    await renderApp();
+    await goTo("Espace entreprise");
+    screen.getByText("Kamsar Solutions · En attente de validation");
+
+    api.setCompanyStatus("APPROVED"); // l'administration valide l'entreprise
+    await goTo("Offres");
+    await goTo("Espace entreprise");
+    // La session date de la connexion (« en attente »), mais l'API dit « validée ».
+    screen.getByText("Kamsar Solutions · Compte vérifié");
+    assert.equal(screen.queryByText(PENDING_BANNER), null);
+  });
+});

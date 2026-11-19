@@ -6,7 +6,8 @@ import type { SessionUser } from "../../services/authService";
 import type { DashboardIdentity } from "../../types/auth";
 import { DEMO_ACCOUNTS } from "./demoAccounts";
 
-const COMPANY_STATUS_LABELS = {
+/** Libellé du statut d.une entreprise (barre latérale, en-tête de l.espace). */
+export const COMPANY_STATUS_LABELS = {
   APPROVED: "Compte vérifié",
   PENDING: "En attente de validation",
   REJECTED: "Compte refusé",

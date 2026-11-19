@@ -7,7 +7,12 @@ import {
 
 /** Tests unitaires : la base est simulée, aucun PostgreSQL n'est nécessaire. */
 describe('CompanyMembershipService', () => {
-  const company = { id: 'company-1', name: 'Entreprise', status: 'APPROVED' };
+  const company = {
+    id: 'company-1',
+    name: 'Entreprise',
+    status: 'APPROVED',
+    rejectionReason: null,
+  };
 
   function createService(membership: unknown) {
     const findUnique = vi.fn().mockResolvedValue(membership);
@@ -30,7 +35,9 @@ describe('CompanyMembershipService', () => {
     const { service, findUnique } = createService({ company });
     await service.currentCompany('user-1');
     expect(findUnique.mock.calls[0][0].select).toEqual({
-      company: { select: { id: true, name: true, status: true } },
+      company: {
+        select: { id: true, name: true, status: true, rejectionReason: true },
+      },
     });
   });
 

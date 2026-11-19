@@ -44,6 +44,7 @@ type LoadState =
       offers: Offer[];
       today: string;
       companyStatus: CompanyStatus;
+      rejectionReason: string | null;
       error?: undefined;
     };
 
@@ -57,6 +58,8 @@ export type CompanyOffersState = {
   today: string;
   /** Statut de l'entreprise selon l'API, null tant qu'il n'est pas connu. */
   companyStatus: CompanyStatus | null;
+  /** Motif du refus de l.administration (entreprise refusée), sinon null. */
+  rejectionReason: string | null;
   /** Villes et domaines proposés : ceux de l'API, dans l'ordre et avec les libellés actuels. */
   cityOptions: readonly string[];
   domainOptions: readonly string[];
@@ -124,6 +127,7 @@ export function useOffers({
           offers: result.offers.map(companyOfferFromApi),
           today: result.today,
           companyStatus: result.company.status,
+          rejectionReason: result.company.rejectionReason ?? null,
         });
       })
       .catch((error: unknown) => {
@@ -180,6 +184,7 @@ export function useOffers({
     offers: success?.offers ?? [],
     today: success?.today ?? todayIsoDate(),
     companyStatus: success?.companyStatus ?? null,
+    rejectionReason: success?.rejectionReason ?? null,
     cityOptions,
     domainOptions,
     pending,

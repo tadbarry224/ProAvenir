@@ -67,6 +67,8 @@ type FakeApiOptions = {
   session?: UserRole;
   /** Statut de l'entreprise de démonstration (APPROVED par défaut). */
   companyStatus?: CompanyStatus;
+  /** Motif renvoyé quand l.entreprise de démonstration est refusée. */
+  rejectionReason?: string;
 };
 
 /** Appel enregistré (pour vérifier ce que l'application envoie). */
@@ -87,6 +89,8 @@ export type FakeApi = {
   companyOffers: (companyId: string) => CompanyOfferApi[];
   /** Entreprises « en base » vues par l'administration (après les décisions). */
   adminCompanies: () => AdminCompanyApi[];
+  /** Décision de l.administration sur l.entreprise de démonstration, pendant la session. */
+  setCompanyStatus: (status: CompanyStatus) => void;
   /** Fait échouer la prochaine requête (méthode + début du chemin). */
   failNext: (method: string, path: string, failure: FakeFailure) => void;
   /** Révoque la session et tous les jetons (ex. session expirée côté serveur). */
@@ -359,7 +363,14 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
         meta: {
           total: data.length,
           today: fakeToday(),
-          company: { name: company.name, status: company.status },
+          company: {
+            name: company.name,
+            status: company.status,
+            rejectionReason:
+              company.status === "REJECTED"
+                ? (options.rejectionReason ?? "Dossier incomplet.")
+                : null,
+          },
         },
       });
     }
@@ -586,6 +597,9 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     },
     companyOffers: (companyId) => offersByCompany.get(companyId) ?? [],
     adminCompanies: () => adminCompanies,
+    setCompanyStatus: (status) => {
+      accounts.COMPANY.company!.status = status;
+    },
     failNext: (method, path, failure) => failures.push({ method, path, failure }),
     revokeSession: () => {
       session = null;

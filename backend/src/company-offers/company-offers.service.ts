@@ -66,7 +66,11 @@ export class CompanyOffersService {
       meta: {
         total: data.length,
         today,
-        company: { name: company.name, status: company.status },
+        company: {
+          name: company.name,
+          status: company.status,
+          rejectionReason: company.rejectionReason,
+        },
       },
     };
   }

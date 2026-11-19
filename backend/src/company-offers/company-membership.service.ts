@@ -10,6 +10,8 @@ export interface CurrentCompany {
   id: string;
   name: string;
   status: CompanyStatus;
+  /** Motif du refus de l.administration (null sauf si l.entreprise est refusée). */
+  rejectionReason: string | null;
 }
 
 export const NO_COMPANY_MESSAGE =
@@ -43,7 +45,11 @@ export class CompanyMembershipService {
     // userId est unique dans CompanyMember : un compte appartient à une seule entreprise.
     const membership = await db.companyMember.findUnique({
       where: { userId },
-      select: { company: { select: { id: true, name: true, status: true } } },
+      select: {
+        company: {
+          select: { id: true, name: true, status: true, rejectionReason: true },
+        },
+      },
     });
     if (!membership) throw noCompany();
     return membership.company;

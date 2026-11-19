@@ -336,7 +336,11 @@ describe('Offres de l’entreprise connectée (e2e)', () => {
       expect(body.meta).toEqual({
         total: 5,
         today: TODAY,
-        company: { name: '[e2e-b4] Entreprise A', status: 'APPROVED' },
+        company: {
+          name: '[e2e-b4] Entreprise A',
+          status: 'APPROVED',
+          rejectionReason: null,
+        },
       });
     });
 
@@ -453,6 +457,8 @@ describe('Offres de l’entreprise connectée (e2e)', () => {
       const body = await offersOf(USER.rejected);
       expect(ids(body)).toEqual([OFFER.rejectedDraft]);
       expect(body.meta.company.status).toBe('REJECTED');
+      // Le motif de l'administration lui est communiqué.
+      expect(body.meta.company.rejectionReason).toBe('Test automatique');
     });
   });
 });

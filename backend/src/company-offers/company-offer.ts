@@ -55,7 +55,12 @@ export interface CompanyOffersResponse {
     /** Date du jour (Conakry) utilisée pour calculer l'expiration. */
     today: string;
     /** L'entreprise connectée : son statut décide de ce qu'elle peut faire. */
-    company: { name: string; status: CompanyStatus };
+    company: {
+      name: string;
+      status: CompanyStatus;
+      /** Motif montré à l.entreprise refusée (null sinon). */
+      rejectionReason: string | null;
+    };
   };
 }
 

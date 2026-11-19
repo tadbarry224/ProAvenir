@@ -42,7 +42,15 @@ export type CompanyOffersResult = {
   offers: CompanyOfferApi[];
   /** Date du jour à Conakry ("AAAA-MM-JJ"), référence pour l'expiration. */
   today: string;
-  company: { name: string; status: CompanyStatus };
+  company: CompanyInfo;
+};
+
+/** L.entreprise connectée, relue à chaque chargement (statut toujours à jour). */
+export type CompanyInfo = {
+  name: string;
+  status: CompanyStatus;
+  /** Motif du refus de l.administration, null sauf si l.entreprise est refusée. */
+  rejectionReason: string | null;
 };
 
 /** Statuts possibles à la création. */
@@ -85,7 +93,7 @@ const BASE = "/companies/me/offers";
 
 type ListResponse = {
   data: CompanyOfferApi[];
-  meta: { total: number; today: string; company: { name: string; status: CompanyStatus } };
+  meta: { total: number; today: string; company: CompanyInfo };
 };
 
 /** Toutes les offres de l'entreprise (brouillons, publiées, clôturées, expirées). */

@@ -24,6 +24,7 @@ import {
   statusActionBlockedReason,
 } from "../../features/offers/offerRules";
 import type { CompanyOffersState } from "../../features/offers/useOffers";
+import { COMPANY_STATUS_LABELS } from "../../features/auth/identity";
 import type { OfferActionError } from "../../features/offers/companyOfferMapping";
 import { toJobView } from "../../features/offers/toJobView";
 import { formatShortDate } from "../../lib/dates";
@@ -51,7 +52,7 @@ function actionErrorMessage(offer: Offer, error: OfferActionError): string {
 export function CompanyDashboard({
   go,
   company,
-  identity,
+  identity: sessionIdentity,
   companyOffers,
   applications,
   updateStatus,
@@ -68,6 +69,11 @@ export function CompanyDashboard({
   updateStatus: (id: string, status: string) => void;
 }) {
   const { offers, today, status: offersStatus, companyStatus, pending } = companyOffers;
+  // Statut relu par l'API à chaque ouverture de l'espace : il remplace celui de la
+  // session, qui peut dater de la connexion (ex. entreprise approuvée depuis).
+  const identity = companyStatus
+    ? { ...sessionIdentity, statusLabel: COMPANY_STATUS_LABELS[companyStatus] }
+    : sessionIdentity;
   const [active, setActive] = useState("Aperçu");
   const [publish, setPublish] = useState(false);
   const [published, setPublished] = useState(false);
@@ -136,6 +142,30 @@ export function CompanyDashboard({
         avatar={identity.initials}
       />
       <div className="dashboard-content">
+        {companyStatus === "PENDING" && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+            <ShieldCheck size={19} className="mt-0.5 shrink-0" />
+            <p>
+              <b>Votre entreprise est en attente de validation.</b> Vous pouvez déjà préparer vos
+              offres en brouillon : vous pourrez les publier dès que l’administration aura validé
+              votre entreprise.
+            </p>
+          </div>
+        )}
+        {companyStatus === "REJECTED" && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-800">
+            <ShieldCheck size={19} className="mt-0.5 shrink-0" />
+            <div>
+              <p>
+                <b>Votre entreprise a été refusée par l’administration.</b> Vos offres restent
+                consultables mais ne peuvent plus être publiées.
+              </p>
+              {companyOffers.rejectionReason && (
+                <p className="mt-1">Motif : {companyOffers.rejectionReason}</p>
+              )}
+            </div>
+          </div>
+        )}
         {published && (
           <div className="mb-5 flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
             <CheckCircle2 size={19} />

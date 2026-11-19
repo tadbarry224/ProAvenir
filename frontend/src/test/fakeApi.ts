@@ -92,6 +92,9 @@ type ErrorDetail = { field: string; message: string };
 /** Échec simulé : code HTTP seul, erreur réseau, ou réponse complète de l'API. */
 export type FakeFailure = number | "network" | { status: number; body: unknown };
 
+/** Forme d'un UUID (identifiant d'offre accepté par le backend). */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -446,6 +449,16 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
       if (path === "/offers") {
         if (options.offersStatus) return json({}, options.offersStatus);
         return json(filterOffers(url.searchParams, publicOffers()));
+      }
+      if (path.startsWith("/offers/") && method === "GET") {
+        // Comme le backend : 400 si l'identifiant n'est pas un UUID, 404 si l'offre
+        // n'est pas publique (brouillon, clôturée, expirée…) ou n'existe pas.
+        const id = path.slice("/offers/".length);
+        if (!UUID.test(id))
+          return apiError(400, "INVALID_OFFER_ID", "Identifiant d’offre invalide.");
+        if (options.offersStatus) return json({}, options.offersStatus);
+        const offer = publicOffers().find((item) => item.id === id);
+        return offer ? json(offer) : apiError(404, "OFFER_NOT_FOUND", "Offre introuvable.");
       }
       if (path === "/auth/login") {
         const account = users.get(String(body.email).trim().toLowerCase());

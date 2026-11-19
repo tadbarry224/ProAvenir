@@ -23,6 +23,7 @@ export function JobDetails({
   job,
   go,
   viewerRole,
+  onLogin,
   applied,
   onApply,
 }: {
@@ -30,6 +31,8 @@ export function JobDetails({
   go: (page: Page) => void;
   /** Rôle de la personne connectée, null pour un visiteur. Seul un candidat peut postuler. */
   viewerRole: UserRole | null;
+  /** Visiteur : ouvre la connexion, puis revient sur cette offre. */
+  onLogin: () => void;
   applied: boolean;
   onApply: () => void;
 }) {
@@ -106,7 +109,7 @@ export function JobDetails({
           <div className="my-5 h-px bg-slate-100" />
           {viewerRole === null && (
             // Visiteur : il doit d'abord se connecter avec un compte candidat.
-            <button onClick={() => go("login")} className="btn-primary w-full">
+            <button onClick={onLogin} className="btn-primary w-full">
               Se connecter pour postuler <ArrowRight size={17} />
             </button>
           )}

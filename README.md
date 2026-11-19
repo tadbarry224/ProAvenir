@@ -76,6 +76,7 @@ La documentation détaillée se trouve dans :
 | `GET /api/cities`                           | Villes (ordre alphabétique)                                                                           |
 | `GET /api/domains`                          | Domaines professionnels (ordre alphabétique)                                                          |
 | `GET /api/offers`                           | Offres publiques, filtrables par `city`, `domain`, `type` (`JOB` / `INTERNSHIP`) et `q` (recherche)   |
+| `GET /api/offers/:id`                       | Une offre publique (page détail, lien partagé) ; 404 si elle n'est pas publique                       |
 | `POST /api/auth/register`                   | Inscription d'un candidat ou d'une entreprise (jamais d'administrateur)                               |
 | `POST /api/auth/login`                      | Connexion (5 tentatives par minute et par adresse IP)                                                 |
 | `POST /api/auth/refresh`                    | Renouvelle la session à partir du cookie                                                              |
@@ -87,6 +88,26 @@ La documentation détaillée se trouve dans :
 
 Une offre n'est publique que si elle est publiée, que sa date limite n'est pas dépassée (le
 jour même reste valable) et que son entreprise est validée.
+
+### Adresses des pages (frontend)
+
+Le frontend utilise React Router : chaque page a sa propre adresse. F5 garde la page affichée, le
+bouton « Retour » du navigateur fonctionne et le lien d'une offre peut être partagé.
+
+| Adresse              | Page                                                   |
+| -------------------- | ------------------------------------------------------ |
+| `/`                  | Accueil                                                |
+| `/offres`            | Liste des offres                                       |
+| `/offres/<id>`       | Détail d'une offre (lien à partager)                   |
+| `/connexion`         | Connexion (revient ensuite à la page demandée)         |
+| `/inscription`       | Inscription                                            |
+| `/espace-candidat`   | Espace candidat (rôle candidat)                        |
+| `/espace-entreprise` | Espace entreprise (rôle entreprise)                    |
+| `/administration`    | Administration (rôle administrateur)                   |
+
+Une adresse inconnue renvoie à l'accueil. Pour une mise en ligne, le serveur web doit renvoyer
+`index.html` pour toutes ces adresses (sinon F5 sur `/offres/<id>` donne une erreur 404 du
+serveur). `npm run dev` et `npm run preview` le font déjà.
 
 ## Prérequis
 
@@ -285,6 +306,7 @@ Vérifications rapides :
 - http://localhost:3001/api/health doit afficher `"database":"up"` ;
 - http://localhost:3001/api/offers doit afficher les offres au format JSON ;
 - http://localhost:8443, page « Offres », doit afficher les offres de la base.
+  Un clic sur une offre ouvre `/offres/<id>` ; F5 sur cette adresse doit réafficher l'offre.
 
 Pour arrêter : `Ctrl + C` dans chaque terminal. La base peut rester allumée.
 

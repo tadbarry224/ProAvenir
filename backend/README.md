@@ -88,6 +88,11 @@ Exemple : http://localhost:3001/api/offers?city=conakry&type=JOB&q=web
 
 Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics sont lus en base (`publicOfferSelect` dans `src/offers/public-offer.ts`) : aucune donnée de compte ni de contact.
 
+`GET /api/offers/:id` renvoie **une** offre publique (même forme qu'un élément de `data`). Un
+identifiant mal formé donne **400** `INVALID_OFFER_ID` ; une offre inconnue, en brouillon,
+clôturée, expirée ou d'une entreprise non validée donne la **même** réponse **404**
+`OFFER_NOT_FOUND` (on ne révèle pas qu'une offre non publique existe).
+
 ## Authentification
 
 | Route | Accès | Effet |
@@ -247,7 +252,7 @@ backend/
 │   ├── health/            GET /api/health
 │   ├── auth/              inscription, connexion, sessions, gardes (JWT, rôles, CSRF), argon2id
 │   ├── reference/         GET /api/cities, GET /api/domains
-│   ├── offers/            GET /api/offers (filtres validés par ListOffersQueryDto)
+│   ├── offers/            GET /api/offers et /api/offers/:id (filtres validés par ListOffersQueryDto)
 │   └── company-offers/    GET /api/companies/me/offers (offres de l'entreprise connectée)
 └── test/                  tests de bout en bout
 ```

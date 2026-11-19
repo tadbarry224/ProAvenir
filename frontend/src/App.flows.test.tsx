@@ -5,7 +5,7 @@
  * l'apparence ; ces tests vérifient que les fonctionnalités marchent.
  */
 import assert from "node:assert/strict";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { describe, it, vi } from "vitest";
 import {
   goTo,
@@ -700,6 +700,7 @@ describe("Authentification", () => {
 
   it("protège les espaces : sans session, redirection vers la connexion", async () => {
     for (const space of ["Espace candidat", "Espace entreprise", "Administration"] as const) {
+      window.history.replaceState(null, "", "/"); // chaque tour repart de l'accueil
       const { unmount } = await renderApp();
       await goTo(space);
       screen.getByRole("heading", { level: 2, name: "Connexion" });
@@ -833,5 +834,112 @@ describe("Navigation (en-tête, pied de page, espaces)", () => {
     // Session fermée : l'espace n'est plus accessible.
     await goTo("Espace candidat");
     screen.getByRole("heading", { level: 2, name: "Connexion" });
+  });
+});
+
+describe("Adresses des pages (React Router)", () => {
+  setupAppTest();
+
+  const DEV_JOB_ID = "30000000-0000-4000-8000-000000000002"; // « Développeur·se web junior »
+  const path = () => window.location.pathname;
+  /** Ouvre l'application directement à une adresse (lien partagé, favori, F5). */
+  const openAt = async (url: string, as?: "CANDIDATE" | "COMPANY" | "ADMIN") => {
+    window.history.replaceState(null, "", url);
+    return renderApp(as ? { as } : {});
+  };
+  /** Bouton « Retour » du navigateur. */
+  const browserBack = async () => {
+    await act(async () => {
+      window.history.back();
+      await new Promise((resolve) => window.addEventListener("popstate", resolve, { once: true }));
+    });
+    await settle();
+  };
+
+  it("chaque page a sa propre adresse", async () => {
+    await renderApp();
+    assert.equal(path(), "/");
+    await goTo("Offres");
+    assert.equal(path(), "/offres");
+    fireEvent.click(screen.getByText("Développeur·se web junior"));
+    await settle();
+    assert.equal(path(), `/offres/${DEV_JOB_ID}`);
+  });
+
+  it("un lien partagé ouvre directement l'offre, lue sur le serveur", async () => {
+    const api = installFakeApi();
+    await openAt(`/offres/${DEV_JOB_ID}`);
+    screen.getByRole("heading", { level: 1, name: "Développeur·se web junior" });
+    assert.ok(api.calls.some((call) => call.path === `/offers/${DEV_JOB_ID}`));
+  });
+
+  it("une offre inconnue ou une adresse mal formée affiche « Offre introuvable »", async () => {
+    for (const url of ["/offres/30000000-0000-4000-8000-000000000999", "/offres/abc"]) {
+      const { unmount } = await openAt(url);
+      screen.getByRole("heading", { name: "Offre introuvable" });
+      fireEvent.click(screen.getByRole("button", { name: "Voir les offres disponibles" }));
+      await settle();
+      assert.equal(path(), "/offres");
+      unmount();
+    }
+  });
+
+  it("une erreur du serveur propose « Réessayer »", async () => {
+    const api = installFakeApi();
+    api.failNext("GET", "/offers/", 500);
+    await openAt(`/offres/${DEV_JOB_ID}`);
+    screen.getByRole("heading", { name: "Impossible de charger l’offre" });
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    await settle();
+    screen.getByRole("heading", { level: 1, name: "Développeur·se web junior" });
+  });
+
+  it("le bouton « Retour » du navigateur revient à la page précédente", async () => {
+    await renderApp();
+    await goTo("Offres");
+    fireEvent.click(screen.getByText("Développeur·se web junior"));
+    await settle();
+    await browserBack();
+    assert.equal(path(), "/offres");
+    assert.equal(await offersCount(), "6 offres disponibles");
+  });
+
+  it("F5 dans un espace garde la même page", async () => {
+    await openAt("/espace-entreprise", "COMPANY");
+    screen.getByText("Kamsar Solutions · Compte vérifié");
+    assert.equal(path(), "/espace-entreprise");
+  });
+
+  it("une adresse inconnue renvoie à l'accueil", async () => {
+    await openAt("/page-qui-n-existe-pas");
+    assert.equal(path(), "/");
+  });
+
+  it("après la connexion, le visiteur revient sur l'offre qu'il voulait", async () => {
+    await openAt(`/offres/${DEV_JOB_ID}`);
+    fireEvent.click(screen.getByRole("button", { name: "Se connecter pour postuler" }));
+    await settle();
+    assert.equal(path(), "/connexion");
+    fireEvent.change(screen.getByLabelText("Adresse e-mail"), {
+      target: { value: FAKE_USERS.CANDIDATE.email },
+    });
+    fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: TEST_PASSWORD } });
+    fireEvent.click(screen.getByRole("button", { name: /^Se connecter/ }));
+    await settle();
+    assert.equal(path(), `/offres/${DEV_JOB_ID}`);
+    screen.getByRole("button", { name: "Postuler maintenant" });
+  });
+
+  it("un espace protégé ouvert sans session y revient après la connexion", async () => {
+    await openAt("/espace-entreprise");
+    assert.equal(path(), "/connexion");
+    fireEvent.change(screen.getByLabelText("Adresse e-mail"), {
+      target: { value: FAKE_USERS.COMPANY.email },
+    });
+    fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: TEST_PASSWORD } });
+    fireEvent.click(screen.getByRole("button", { name: /^Se connecter/ }));
+    await settle();
+    assert.equal(path(), "/espace-entreprise");
+    screen.getByText("Kamsar Solutions · Compte vérifié");
   });
 });

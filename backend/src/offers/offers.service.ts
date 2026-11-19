@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { apiError } from '../common/api-error.js';
 import { ClockService } from '../common/clock.service.js';
+import { OFFER_NOT_FOUND } from '../company-offers/company-offers.service.js';
+import { OFFER_ERROR_CODES } from '../company-offers/offer-rules.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { ListOffersQueryDto } from './dto/list-offers-query.dto.js';
@@ -7,6 +10,7 @@ import {
   publicOfferSelect,
   publicOffersWhere,
   toPublicOffer,
+  type PublicOffer,
   type PublicOffersResponse,
 } from './public-offer.js';
 
@@ -36,6 +40,22 @@ export class OffersService {
     });
     const data = rows.map(toPublicOffer);
     return { data, meta: { total: data.length, today } };
+  }
+
+  /**
+   * Une offre publique par son identifiant. Brouillon, offre clôturée ou expirée,
+   * entreprise non validée et identifiant inconnu donnent la MÊME réponse 404 :
+   * on ne révèle pas l'existence d'une offre non publique.
+   */
+  async findPublic(id: string): Promise<PublicOffer> {
+    const row = await this.prisma.offer.findFirst({
+      where: { AND: [publicOffersWhere(this.clock.today()), { id }] },
+      select: publicOfferSelect,
+    });
+    if (!row) {
+      throw apiError(404, OFFER_ERROR_CODES.offerNotFound, OFFER_NOT_FOUND);
+    }
+    return toPublicOffer(row);
   }
 
   /**

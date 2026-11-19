@@ -24,6 +24,8 @@ export function setupAppTest() {
     vi.setSystemTime(FIXED_NOW);
     // jsdom n'implémente pas le défilement ; `go()` l'appelle à chaque navigation.
     window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    // Chaque test démarre sur l'accueil (« / ») : l'adresse ne fuit pas d'un test à l'autre.
+    window.history.replaceState(null, "", "/");
     // Faux serveur par défaut ; un test peut le réinstaller (ex. installFakeApi({ down: true })).
     installFakeApi();
   });

@@ -15,11 +15,11 @@ export type DashboardIdentity = {
 };
 
 /** Espace réservé à chaque rôle. */
-export const ROLE_HOME: Record<UserRole, Page> = {
+export const ROLE_HOME = {
   CANDIDATE: "candidate",
   COMPANY: "company",
   ADMIN: "admin",
-};
+} as const satisfies Record<UserRole, Page>;
 
 /** Rôle exigé pour chaque espace protégé (les autres pages sont publiques). */
 export const PROTECTED_PAGES: Partial<Record<Page, UserRole>> = {

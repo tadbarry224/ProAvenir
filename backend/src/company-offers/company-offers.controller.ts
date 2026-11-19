@@ -1,29 +1,10 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser, Roles, type AuthUser } from '../auth/auth.decorators.js';
-import { apiError } from '../common/api-error.js';
+import { offerIdPipe } from '../common/offer-id.pipe.js';
 import type { CompanyOffer, CompanyOffersResponse } from './company-offer.js';
 import { CompanyOffersService } from './company-offers.service.js';
 import { ChangeOfferStatusDto } from './dto/change-offer-status.dto.js';
 import { CreateCompanyOfferDto } from './dto/create-company-offer.dto.js';
-import { OFFER_ERROR_CODES } from './offer-rules.js';
-
-/** Identifiant d'offre dans l'URL : un UUID, sinon 400 avant toute requête en base. */
-const offerIdPipe = new ParseUUIDPipe({
-  exceptionFactory: () =>
-    apiError(
-      400,
-      OFFER_ERROR_CODES.invalidOfferId,
-      'Identifiant d’offre invalide.',
-    ),
-});
 
 /**
  * Offres de l'entreprise connectée (espace entreprise).

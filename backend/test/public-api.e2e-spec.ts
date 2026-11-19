@@ -237,6 +237,41 @@ describe('API publiques (e2e)', () => {
     );
   });
 
+  describe('GET /api/offers/:id', () => {
+    it('renvoie une offre publique, identique à celle de la liste', async () => {
+      const [first] = (await listOffers()).data;
+      const response = await http().get(`/api/offers/${first.id}`).expect(200);
+      expect(response.body as PublicOffer).toEqual(first);
+    });
+
+    it('refuse un identifiant mal formé (400 INVALID_OFFER_ID)', async () => {
+      const response = await http().get('/api/offers/abc').expect(400);
+      expect(response.body).toMatchObject({ code: 'INVALID_OFFER_ID' });
+    });
+
+    it('répond 404 OFFER_NOT_FOUND pour un identifiant inconnu', async () => {
+      const response = await http()
+        .get(`/api/offers/${testId(99)}`)
+        .expect(404);
+      expect(response.body).toEqual({
+        statusCode: 404,
+        error: 'Not Found',
+        code: 'OFFER_NOT_FOUND',
+        message: 'Offre introuvable.',
+      });
+    });
+
+    it('ne renvoie plus une offre après sa date limite', async () => {
+      const offer = (await listOffers()).data.find(
+        (o) => o.title === 'Agent·e logistique',
+      )!;
+      today = '2027-01-20';
+      await http().get(`/api/offers/${offer.id}`).expect(200);
+      today = '2027-01-21';
+      await http().get(`/api/offers/${offer.id}`).expect(404);
+    });
+  });
+
   describe('Visibilité selon la date limite', () => {
     it('une offre reste visible le jour de sa date limite, puis disparaît', async () => {
       today = '2027-01-20'; // date limite de « Agent·e logistique »
@@ -330,6 +365,14 @@ describe('API publiques (e2e)', () => {
       expect(titles(await listOffers('?q=e2e'))).toEqual([
         '[e2e] Visible aujourd’hui',
       ]);
+    });
+
+    it('le lien direct d’une offre non publique répond 404, comme une offre inconnue', async () => {
+      await http().get(`/api/offers/${TEST_OFFER_IDS[0]}`).expect(200);
+      for (const id of TEST_OFFER_IDS.slice(1)) {
+        const response = await http().get(`/api/offers/${id}`).expect(404);
+        expect(response.body.code).toBe('OFFER_NOT_FOUND');
+      }
     });
   });
 });

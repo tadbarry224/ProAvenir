@@ -9,7 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import type { Page } from "../types/navigation";
-import { ROLE_HOME } from "../types/auth";
+import type { UserRole } from "../types/auth";
 import { Logo } from "../components/layout/Logo";
 import { useAuth } from "../features/auth/authContext";
 import { DEMO_ACCOUNTS } from "../features/auth/demoAccounts";
@@ -18,9 +18,12 @@ export function AuthPage({
   mode,
   go,
   notice,
+  onAuthenticated,
 }: {
   mode: "login" | "register";
   go: (page: Page) => void;
+  /** Appelée après une connexion ou une inscription réussie (redirection décidée par App). */
+  onAuthenticated: (role: UserRole) => void;
   /** Information à afficher au-dessus du formulaire (ex. session expirée). */
   notice?: string;
 }) {
@@ -63,8 +66,9 @@ export function AuthPage({
             password,
             rememberMe: rememberMeInput.current?.checked ?? false,
           });
-      // Chaque rôle arrive dans son espace (le rôle vient du serveur, pas du choix affiché).
-      go(ROLE_HOME[user.role]);
+      // Le rôle vient du serveur, pas du choix affiché : App choisit la page suivante
+      // (la page demandée avant la connexion, sinon l’espace du rôle).
+      onAuthenticated(user.role);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Une erreur inattendue est survenue.");
     } finally {

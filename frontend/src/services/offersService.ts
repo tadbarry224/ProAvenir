@@ -44,6 +44,14 @@ type PublicOffersResponse = {
   meta: { total: number; today: string };
 };
 
+/**
+ * Une offre publique : GET /api/offers/:id (page détail, lien partagé).
+ * Une offre non publique ou inconnue donne une ApiError 404 (code OFFER_NOT_FOUND).
+ */
+export async function fetchPublicOffer(id: string, signal?: AbortSignal): Promise<PublicOffer> {
+  return apiGet<PublicOffer>(`/offers/${encodeURIComponent(id)}`, {}, signal);
+}
+
 export async function fetchPublicOffers(
   filters: PublicOfferFilters = {},
   signal?: AbortSignal,

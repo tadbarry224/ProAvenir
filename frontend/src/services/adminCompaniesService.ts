@@ -40,6 +40,7 @@ export const ADMIN_COMPANY_ERROR_CODES = {
   invalidCompanyId: "INVALID_COMPANY_ID", // 400
   companyNotFound: "COMPANY_NOT_FOUND", // 404
   alreadyInStatus: "COMPANY_ALREADY_IN_STATUS", // 409
+  identityChanged: "COMPANY_IDENTITY_CHANGED", // 409
 } as const;
 
 /** Longueur du motif de refus acceptée par le serveur. */
@@ -61,10 +62,11 @@ export function reviewCompany(
   session: AccessTokenSource,
   companyId: string,
   review: CompanyReview,
+  expectedName?: string,
 ): Promise<AdminCompanyApi> {
   return authorizedRequest<AdminCompanyApi>(
     session,
     `${BASE}/${encodeURIComponent(companyId)}/status`,
-    { method: "PATCH", body: review },
+    { method: "PATCH", body: { ...review, expectedName } },
   );
 }

@@ -41,6 +41,17 @@ export type FakeApplication = {
   createdAt: string;
   updatedAt: string;
   cvFileName: string | null;
+  /** Fichier joint (clé dans les fichiers du faux serveur), null sans CV. */
+  cvKey: string | null;
+};
+
+/** Profil candidat « en base » du faux serveur (le nom vient du compte). */
+export type FakeProfile = {
+  cityId: string | null;
+  education: string | null;
+  bio: string | null;
+  skills: string[];
+  cv: { key: string; fileName: string; size: number; uploadedAt: string } | null;
 };
 
 /**
@@ -78,8 +89,21 @@ const seedApplication = (
   message: null,
   createdAt,
   updatedAt: createdAt,
-  cvFileName: candidateEmail.startsWith("mariama") ? "CV_Mariama_Diallo.pdf" : null,
+  // Le seed n'a déposé aucun vrai fichier : l'API n'annonce donc aucun CV.
+  cvFileName: null,
+  cvKey: null,
 });
+
+/** Profils de départ (seed) : la candidate de démonstration a un profil rempli, sans CV. */
+const SEED_PROFILES: Record<string, FakeProfile> = {
+  "mariama.diallo@proavenir.test": {
+    cityId: "conakry",
+    education: "Licence en Communication — Université de Sonfonia",
+    bio: "Jeune diplômée passionnée par la communication digitale et les projets à impact.",
+    skills: ["Communication", "Réseaux sociaux", "Canva", "Excel"],
+    cv: null,
+  },
+};
 
 const SEED_APPLICATIONS: FakeApplication[] = [
   seedApplication(1, 1, "mariama.diallo@proavenir.test", "IN_REVIEW", "2026-12-12T12:00:00.000Z"),
@@ -153,6 +177,10 @@ export type FakeApi = {
   adminCompanies: () => AdminCompanyApi[];
   /** Candidatures « en base » (après les dépôts et les changements de statut). */
   applications: () => FakeApplication[];
+  /** Profil « en base » d'un candidat (par e-mail). */
+  profile: (email: string) => FakeProfile;
+  /** Nombre de fichiers de CV conservés par le faux serveur. */
+  storedCvCount: () => number;
   /** Décision de l’administration sur l’entreprise de démonstration, pendant la session. */
   setCompanyStatus: (status: CompanyStatus) => void;
   /** Fait échouer la prochaine requête (méthode + début du chemin). */
@@ -253,8 +281,10 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
   const requests: URL[] = [];
   const calls: FakeCall[] = [];
   // Copie des comptes : le statut de l'entreprise peut être choisi par le test.
+  // Copies : un test qui modifie un compte (ex. renommer la candidate) n'affecte pas les suivants.
   const accounts: Record<UserRole, SessionUser> = {
-    ...FAKE_USERS,
+    CANDIDATE: { ...FAKE_USERS.CANDIDATE },
+    ADMIN: { ...FAKE_USERS.ADMIN },
     COMPANY: {
       ...FAKE_USERS.COMPANY,
       company: {
@@ -278,11 +308,142 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     ],
   ]);
   let offerCount = 0;
+  const companyProfiles = new Map<
+    string,
+    {
+      sector: string | null;
+      cityId: string | null;
+      description: string | null;
+      contactEmail: string | null;
+      phone: string | null;
+    }
+  >();
   /** Entreprises « en base » pour l'administration (départ : seed). */
   const adminCompanies = structuredClone(adminCompaniesResponse.data) as AdminCompanyApi[];
   /** Candidatures « en base » (départ : seed). */
   const applications: FakeApplication[] = structuredClone(SEED_APPLICATIONS);
   let applicationCount = 0;
+  /** Profils candidats « en base » (par e-mail) et fichiers des CV (par clé). */
+  const profiles = new Map<string, FakeProfile>(Object.entries(structuredClone(SEED_PROFILES)));
+  const files = new Map<string, Blob>();
+  let fileCount = 0;
+  const profileOf = (email: string): FakeProfile => {
+    let profile = profiles.get(email);
+    if (!profile) {
+      // Comme l'inscription réelle : un profil vide est créé avec le compte.
+      profile = { cityId: null, education: null, bio: null, skills: [], cv: null };
+      profiles.set(email, profile);
+    }
+    return profile;
+  };
+  const cityOf = (cityId: string | null) =>
+    citiesResponse.data.find((city) => city.id === cityId) ?? null;
+  /** Ce que l'entreprise voit du candidat (comme receivedApplicationSelect). */
+  const candidateInfo = (email: string): ReceivedApplicationApi["candidate"] => {
+    const profile = profileOf(email);
+    return {
+      fullName:
+        users.get(email)?.user.fullName ?? FAKE_CANDIDATE_PROFILES[email]?.fullName ?? email,
+      email,
+      city: cityOf(profile.cityId),
+      education: profile.education,
+      skills: profile.skills,
+    };
+  };
+  // Les octets sont relus : Response ne sait pas lire directement un fichier de jsdom.
+  const pdfResponse = async (file: Blob) =>
+    new Response(await file.arrayBuffer(), {
+      status: 200,
+      headers: { "Content-Type": "application/pdf" },
+    });
+  /** Un fichier joint à une candidature est gardé ; sinon il est supprimé. */
+  const removeIfUnused = (key: string | undefined) => {
+    if (key && !applications.some((a) => a.cvKey === key)) files.delete(key);
+  };
+  const profileView = (user: SessionUser) => {
+    const profile = profileOf(user.email);
+    return {
+      fullName: user.fullName,
+      email: user.email,
+      city: cityOf(profile.cityId),
+      education: profile.education,
+      bio: profile.bio,
+      skills: profile.skills,
+      cv: profile.cv
+        ? {
+            fileName: profile.cv.fileName,
+            size: profile.cv.size,
+            uploadedAt: profile.cv.uploadedAt,
+          }
+        : null,
+    };
+  };
+
+  /** Profil et CV du candidat, avec les mêmes contrôles que le backend. */
+  const profileRoute = async (
+    path: string,
+    method: string,
+    body: Record<string, unknown>,
+    form: FormData | null,
+    authorization: string | undefined,
+  ) => {
+    const user = authorization?.startsWith("Bearer ")
+      ? tokens.get(authorization.slice("Bearer ".length))
+      : undefined;
+    if (!user) return apiError(401, undefined, "Connexion requise.");
+    if (user.role !== "CANDIDATE") return apiError(403, undefined, "Accès réservé.");
+    const profile = profileOf(user.email);
+
+    if (path === "/candidates/me/profile") {
+      if (method === "GET") return json(profileView(user));
+      const text = (value: unknown) => (typeof value === "string" ? value.trim() || null : null);
+      if (body.cityId && !cityOf(String(body.cityId))) {
+        return apiError(
+          400,
+          "VALIDATION_FAILED",
+          ["Choisissez une ville dans la liste."],
+          [{ field: "cityId", message: "Choisissez une ville dans la liste." }],
+        );
+      }
+      if ("fullName" in body) user.fullName = String(body.fullName).replace(/\s+/g, " ").trim();
+      if ("cityId" in body) profile.cityId = text(body.cityId);
+      if ("education" in body) profile.education = text(body.education);
+      if ("bio" in body) profile.bio = text(body.bio);
+      if (Array.isArray(body.skills)) profile.skills = body.skills.map(String);
+      return json(profileView(user));
+    }
+
+    // /candidates/me/cv
+    if (method === "GET") {
+      const file = profile.cv ? files.get(profile.cv.key) : undefined;
+      return file ? pdfResponse(file) : apiError(404, "CV_NOT_FOUND", "Aucun CV n’est disponible.");
+    }
+    const previous = profile.cv?.key;
+    if (method === "DELETE") {
+      profile.cv = null;
+      removeIfUnused(previous);
+      return json(profileView(user));
+    }
+    const file = form?.get("cv");
+    if (!(file instanceof Blob) || file.size === 0) {
+      return apiError(400, "CV_REQUIRED", "Choisissez un fichier PDF à envoyer.");
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return apiError(413, "CV_TOO_LARGE", "Le CV ne doit pas dépasser 5 Mo.");
+    }
+    const head = new TextDecoder().decode(await file.slice(0, 5).arrayBuffer());
+    if (head !== "%PDF-") return apiError(400, "CV_NOT_PDF", "Le CV doit être un fichier PDF.");
+    const key = `cv-${++fileCount}`;
+    files.set(key, file);
+    profile.cv = {
+      key,
+      fileName: (file as File).name || "CV.pdf",
+      size: file.size,
+      uploadedAt: new Date().toISOString(),
+    };
+    removeIfUnused(previous);
+    return json(profileView(user));
+  };
 
   /** Offre connue du faux serveur : liste publique, ou offre gérée par une entreprise. */
   const offerInfo = (offerId: string) => {
@@ -326,15 +487,9 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
       message: application.message,
       createdAt: application.createdAt,
       updatedAt: application.updatedAt,
-      cvFileName: application.cvFileName,
+      cvFileName: application.cvKey ? application.cvFileName : null,
       offer: { id: offer.id, title: offer.title },
-      candidate: FAKE_CANDIDATE_PROFILES[application.candidateEmail] ?? {
-        fullName: application.candidateEmail,
-        email: application.candidateEmail,
-        city: null,
-        education: null,
-        skills: [],
-      },
+      candidate: candidateInfo(application.candidateEmail),
     };
   };
   const newest = (a: FakeApplication, b: FakeApplication) =>
@@ -383,7 +538,9 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
         message: message || null,
         createdAt: now,
         updatedAt: now,
-        cvFileName: null,
+        // Comme le serveur : le CV actuel du profil est recopié dans la candidature.
+        cvFileName: profileOf(user.email).cv?.fileName ?? null,
+        cvKey: profileOf(user.email).cv?.key ?? null,
       };
       applications.push(application);
       return json(toCandidateView(application), 201);
@@ -400,6 +557,13 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     if (path === "/companies/me/applications" && method === "GET") {
       const data = [...received].sort(newest).map(toReceivedView);
       return json({ data, meta: { total: data.length } });
+    }
+    const cvMatch = /^\/companies\/me\/applications\/([^/]+)\/cv$/.exec(path);
+    if (cvMatch && method === "GET") {
+      const application = received.find((a) => a.id === cvMatch[1]);
+      if (!application) return apiError(404, "APPLICATION_NOT_FOUND", "Candidature introuvable.");
+      const file = application.cvKey ? files.get(application.cvKey) : undefined;
+      return file ? pdfResponse(file) : apiError(404, "CV_NOT_FOUND", "Aucun CV n’est disponible.");
     }
     const match = /^\/companies\/me\/applications\/([^/]+)\/status$/.exec(path);
     if (!match || method !== "PATCH") return apiError(404, undefined, "Not Found");
@@ -474,6 +638,9 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     }
     if (body.status === "APPROVED" && reason) {
       return apiError(400, "VALIDATION_FAILED", ["Une approbation ne prend pas de motif."]);
+    }
+    if (body.expectedName !== undefined && body.expectedName !== company.name) {
+      return apiError(409, "COMPANY_IDENTITY_CHANGED", "Le nom de l’entreprise a changé.");
     }
     if (company.status === body.status) {
       return apiError(
@@ -557,6 +724,50 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     const company = user.company;
     if (!company) {
       return apiError(403, "NO_COMPANY", "Aucune entreprise n’est associée à ce compte.");
+    }
+    if (path === "/companies/me/profile") {
+      const admin = adminCompanies.find((row) => row.id === company.id);
+      const profile = companyProfiles.get(company.id) ?? {
+        sector: admin?.sector ?? null,
+        cityId: admin?.city?.id ?? null,
+        description: null,
+        contactEmail: null,
+        phone: null,
+      };
+      if (method === "PATCH") {
+        const cityId = typeof body.cityId === "string" ? body.cityId.trim() : body.cityId;
+        if (cityId && !citiesResponse.data.some((city) => city.id === cityId)) {
+          return apiError(400, "VALIDATION_FAILED", "Choisissez une ville dans la liste.");
+        }
+        for (const key of ["sector", "cityId", "description", "contactEmail", "phone"] as const) {
+          if (typeof body[key] === "string") profile[key] = body[key].trim() || null;
+          if (body[key] === null) profile[key] = null;
+        }
+        companyProfiles.set(company.id, profile);
+        if (typeof body.name === "string" && body.name !== company.name) {
+          company.name = body.name;
+          company.status = "PENDING";
+          if (admin) {
+            admin.name = company.name;
+            admin.status = company.status;
+            admin.rejectionReason = null;
+            admin.reviewedAt = null;
+          }
+        }
+        if (admin) {
+          admin.sector = profile.sector;
+          admin.city = citiesResponse.data.find((city) => city.id === profile.cityId) ?? null;
+        }
+      }
+      return json({
+        name: company.name,
+        sector: profile.sector,
+        city: citiesResponse.data.find((city) => city.id === profile.cityId) ?? null,
+        description: profile.description,
+        contactEmail: profile.contactEmail,
+        phone: profile.phone,
+        status: company.status,
+      });
     }
     const list = offersByCompany.get(company.id) ?? [];
     offersByCompany.set(company.id, list);
@@ -713,7 +924,9 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
       if (options.down) throw new TypeError("Failed to fetch");
       const path = url.pathname.replace(/^\/api/, "");
       const method = init.method ?? "GET";
-      const body = init.body ? JSON.parse(String(init.body)) : {};
+      // Un envoi de fichier (FormData) est gardé tel quel ; le reste est du JSON.
+      const form = init.body instanceof FormData ? init.body : null;
+      const body = init.body && !form ? JSON.parse(String(init.body)) : {};
       const headers = (init.headers ?? {}) as Record<string, string>;
       calls.push({ method, path, body, authorization: headers.Authorization });
 
@@ -733,7 +946,7 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
         if (init.credentials !== "include") return json({ message: "Sans cookie" }, 401);
       }
 
-      if (path.startsWith("/companies/me/offers")) {
+      if (path.startsWith("/companies/me/offers") || path === "/companies/me/profile") {
         return companyRoute(path, method, body, headers.Authorization);
       }
       if (
@@ -741,6 +954,9 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
         path.startsWith("/companies/me/applications")
       ) {
         return applicationsRoute(path, method, body, headers.Authorization);
+      }
+      if (path === "/candidates/me/profile" || path === "/candidates/me/cv") {
+        return profileRoute(path, method, body, form, headers.Authorization);
       }
       if (path.startsWith("/admin/companies")) {
         return adminRoute(path, method, body, headers.Authorization);
@@ -814,6 +1030,8 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     },
     companyOffers: (companyId) => offersByCompany.get(companyId) ?? [],
     adminCompanies: () => adminCompanies,
+    profile: (email) => profileOf(email),
+    storedCvCount: () => files.size,
     applications: () => applications,
     setCompanyStatus: (status) => {
       accounts.COMPANY.company!.status = status;

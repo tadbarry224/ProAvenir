@@ -118,3 +118,15 @@ export function changeApplicationStatus(
     { method: "PATCH", body: { status } },
   );
 }
+
+/** CV joint à une candidature reçue (PDF), pour l'entreprise. */
+export function downloadApplicationCv(
+  session: AccessTokenSource,
+  applicationId: string,
+): Promise<Blob> {
+  return authorizedRequest<Blob>(
+    session,
+    `${COMPANY_BASE}/${encodeURIComponent(applicationId)}/cv`,
+    { responseType: "blob" },
+  );
+}

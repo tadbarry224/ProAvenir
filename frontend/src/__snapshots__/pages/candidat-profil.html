@@ -178,27 +178,27 @@
 </div>
 <div class="dashboard-content">
 <div class="grid gap-6 xl:grid-cols-[1fr_320px]">
-<form class="content-card p-6 sm:p-8">
+<form novalidate="" class="content-card p-6 sm:p-8">
 <div class="grid gap-5 sm:grid-cols-2">
-<label class="form-label">Nom complet<input required="" value="Mariama Diallo">
+<label class="form-label">Nom complet<input maxlength="100" aria-invalid="false" value="Mariama Diallo">
 </label>
 <label class="form-label">Ville<select>
-<option value="" selected="">Choisir une ville</option>
-<option>Conakry</option>
-<option>Kindia</option>
-<option>Labé</option>
-<option>Boké</option>
+<option value="">Choisir une ville</option>
+<option value="boke">Boké</option>
+<option value="conakry">Conakry</option>
+<option value="kindia">Kindia</option>
+<option value="labe">Labé</option>
 </select>
 </label>
-<label class="form-label sm:col-span-2">Formation<input placeholder="Ex. Licence en gestion — Université de Conakry">
+<label class="form-label sm:col-span-2">Formation<input maxlength="200" placeholder="Ex. Licence en gestion — Université de Conakry" value="Licence en Communication — Université de Sonfonia">
 </label>
-<label class="form-label sm:col-span-2">Présentation<textarea rows="4" placeholder="Présentez-vous en quelques lignes.">
-</textarea>
+<label class="form-label sm:col-span-2">Présentation<textarea rows="4" maxlength="1000" placeholder="Présentez-vous en quelques lignes.">Jeune diplômée passionnée par la communication digitale et les projets à impact.</textarea>
 </label>
-<label class="form-label sm:col-span-2">Compétences<input placeholder="Ex. Excel, communication, comptabilité">
+<label class="form-label sm:col-span-2">Compétences <span>(séparées par des virgules)</span>
+<input placeholder="Ex. Excel, communication, comptabilité" value="Communication, Réseaux sociaux, Canva, Excel">
 </label>
 </div>
-<button class="btn-primary mt-6">Enregistrer les modifications</button>
+<button class="btn-primary mt-6 disabled:opacity-60">Enregistrer les modifications</button>
 </form>
 <div class="content-card h-fit p-6">
 <h2 class="font-bold text-[#0c2340]">Mon CV</h2>
@@ -216,9 +216,9 @@
 </path>
 </svg>
 <p class="mt-3 text-sm font-bold">Aucun CV déposé</p>
-<p class="mt-1 text-xs text-slate-400">Le dépôt de CV arrive prochainement.</p>
+<p class="mt-1 text-xs text-slate-400">Il sera joint à vos prochaines candidatures.</p>
 </div>
-<button type="button" disabled="" class="btn-secondary mt-4 w-full opacity-60">
+<label class="btn-secondary mt-4 w-full cursor-pointer ">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload" aria-hidden="true">
 <path d="M12 3v12">
 </path>
@@ -226,8 +226,10 @@
 </path>
 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4">
 </path>
-</svg> Déposer un CV</button>
+</svg> Déposer un CV<input accept=".pdf,application/pdf" aria-label="Fichier du CV (PDF)" class="hidden" type="file">
+</label>
 <p class="mt-3 text-center text-[11px] text-slate-400">PDF uniquement · 5 Mo maximum</p>
+<p class="mt-2 text-center text-[11px] text-slate-400">Votre CV n’est visible que par les recruteurs auxquels vous postulez.</p>
 </div>
 </div>
 </div>

@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import {
+  CandidateProfileService,
+  type CvDownload,
+} from '../candidate-profile/candidate-profile.service.js';
+import { CV_ERROR_CODES, CV_MESSAGES } from '../candidate-profile/cv-rules.js';
 import { apiError } from '../common/api-error.js';
 import { ClockService } from '../common/clock.service.js';
 import { toIsoDate } from '../common/dates.js';
@@ -50,19 +55,64 @@ export class ApplicationsService {
     private readonly prisma: PrismaService,
     private readonly clock: ClockService,
     private readonly membership: CompanyMembershipService,
+    private readonly profiles: CandidateProfileService,
   ) {}
+
+  /**
+   * CV joint à une candidature reçue par l'entreprise de la session. Une
+   * candidature d'une autre entreprise donne 404, comme une candidature sans CV.
+   */
+  async downloadReceivedCv(
+    userId: string,
+    applicationId: string,
+  ): Promise<CvDownload> {
+    const company = await this.membership.currentCompany(userId);
+    const application = await this.prisma.application.findFirst({
+      where: { id: applicationId, offer: { companyId: company.id } },
+      select: { cvFileKey: true, cvFileName: true },
+    });
+    if (!application) {
+      throw apiError(
+        404,
+        APPLICATION_ERROR_CODES.applicationNotFound,
+        APPLICATION_MESSAGES.applicationNotFound,
+      );
+    }
+    if (!application.cvFileKey || !application.cvFileName) {
+      throw apiError(404, CV_ERROR_CODES.cvNotFound, CV_MESSAGES.cvNotFound);
+    }
+    return this.profiles.readFile(
+      application.cvFileKey,
+      application.cvFileName,
+    );
+  }
 
   // --- Côté candidat ----------------------------------------------------------
 
   /** Profil du candidat connecté (lu en base, jamais fourni par le client). */
   private async candidateProfile(
     userId: string,
-    db: Pick<PrismaService, 'candidateProfile'> = this.prisma,
+    tx?: Prisma.TransactionClient,
   ) {
-    const profile = await db.candidateProfile.findUnique({
-      where: { userId },
-      select: { id: true, cvFileKey: true, cvFileName: true },
-    });
+    // Le retrait ou le remplacement du CV attend que la candidature soit enregistrée.
+    const profile = tx
+      ? (
+          await tx.$queryRaw<
+            {
+              id: string;
+              cvFileKey: string | null;
+              cvFileName: string | null;
+            }[]
+          >`
+            SELECT "id", "cvFileKey", "cvFileName"
+            FROM "CandidateProfile"
+            WHERE "userId" = ${userId}::uuid
+            FOR SHARE`
+        )[0]
+      : await this.prisma.candidateProfile.findUnique({
+          where: { userId },
+          select: { id: true, cvFileKey: true, cvFileName: true },
+        });
     if (!profile) {
       throw apiError(
         403,

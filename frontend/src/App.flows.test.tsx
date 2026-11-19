@@ -11,6 +11,8 @@ import {
   goTo,
   loginWithForm,
   openTab,
+  pdfFile,
+  savedFiles,
   renderApp,
   settle,
   setupAppTest,
@@ -311,6 +313,32 @@ describe("Offres de l'entreprise (API réelle)", () => {
     await myOffers();
     screen.getByText(KAMSAR_OFFER);
     assert.equal(screen.queryByText("Développeur·se web junior"), null);
+  });
+
+  it("enregistre et recharge le profil entreprise, puis affiche la nouvelle vérification", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await goTo("Espace entreprise");
+    openTab("Profil entreprise");
+    await settle();
+    type(screen.getByLabelText(/^Nom de l’entreprise/), "Kamsar Nouvelle");
+    type(screen.getByLabelText("Ville"), "labe");
+    type(screen.getByLabelText("E-mail de contact"), "contact@kamsar.gn");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await settle();
+    assert.deepEqual(api.calls.find((call) => call.method === "PATCH")?.body, {
+      name: "Kamsar Nouvelle",
+      cityId: "labe",
+      contactEmail: "contact@kamsar.gn",
+    });
+    screen.getByText("Profil enregistré. Le nouveau nom est en attente de validation.");
+    screen.getByText("Votre entreprise est en attente de validation.");
+    openTab("Aperçu");
+    openTab("Profil entreprise");
+    await settle();
+    screen.getByDisplayValue("Kamsar Nouvelle");
+    screen.getByDisplayValue("Labé");
+    screen.getByDisplayValue("contact@kamsar.gn");
   });
 
   it("enregistre un brouillon via l'API, invisible publiquement, conservé après F5", async () => {
@@ -897,7 +925,7 @@ describe("Administration", () => {
     // L'API a reçu la décision, avec le jeton de l'administrateur.
     const [call] = reviewCalls(api);
     assert.equal(call.path, `/admin/companies/${HOROYA}/status`);
-    assert.deepEqual(call.body, { status: "APPROVED" });
+    assert.deepEqual(call.body, { status: "APPROVED", expectedName: "Horoya Conseil" });
     assert.match(call.authorization ?? "", /^Bearer /);
     // Vue générale : seulement les entreprises en attente.
     assert.equal(screen.queryByText("Horoya Conseil"), null);
@@ -927,6 +955,7 @@ describe("Administration", () => {
     assert.deepEqual(reviewCalls(api)[0].body, {
       status: "REJECTED",
       reason: "Numéro RCCM manquant",
+      expectedName: "Horoya Conseil",
     });
     screen.getByText("Motif : Numéro RCCM manquant");
     companyRow("Horoya Conseil").getByText("Refusée");
@@ -1204,5 +1233,169 @@ describe("Statut de l'entreprise (vu par l'entreprise)", () => {
     // La session date de la connexion (« en attente »), mais l'API dit « validée ».
     screen.getByText("Kamsar Solutions · Compte vérifié");
     assert.equal(screen.queryByText(PENDING_BANNER), null);
+  });
+});
+
+describe("Profil et CV du candidat (B6)", () => {
+  setupAppTest();
+
+  const MARIAMA = FAKE_USERS.CANDIDATE.email;
+  const KAMSAR_OFFER_ID = "30000000-0000-4000-8000-000000000001";
+  const cvInput = () => screen.getByLabelText("Fichier du CV (PDF)");
+  const chooseFile = async (file: File) => {
+    fireEvent.change(cvInput(), { target: { files: [file] } });
+    await settle();
+  };
+  const openProfile = async () => {
+    await goTo("Espace candidat");
+    openTab("Mon profil");
+    await settle();
+  };
+  const cvCalls = (api: FakeApi) =>
+    api.calls.filter((call) => call.path === "/candidates/me/cv" && call.method === "PUT");
+
+  it("affiche le vrai profil et enregistre les modifications", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    await renderApp();
+    await openProfile();
+    // Valeurs du serveur (seed), plus aucune valeur inventée par l'interface.
+    screen.getByDisplayValue("Licence en Communication — Université de Sonfonia");
+    screen.getByDisplayValue("Communication, Réseaux sociaux, Canva, Excel");
+
+    type(screen.getByLabelText("Formation"), "Master en marketing");
+    type(screen.getByLabelText("Ville"), "labe");
+    type(screen.getByLabelText(/Compétences/), "Excel, excel, Canva ");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les modifications" }));
+    await settle();
+
+    screen.getByText("Modifications enregistrées.");
+    const patch = api.calls.find((call) => call.method === "PATCH")!;
+    assert.equal(patch.path, "/candidates/me/profile");
+    assert.deepEqual(patch.body, {
+      fullName: "Mariama Diallo",
+      cityId: "labe",
+      education: "Master en marketing",
+      bio: "Jeune diplômée passionnée par la communication digitale et les projets à impact.",
+      skills: ["Excel", "Canva"],
+    });
+    assert.equal(api.profile(MARIAMA).education, "Master en marketing");
+  });
+
+  it("un nouveau nom s'affiche partout (session relue)", async () => {
+    await renderApp({ as: "CANDIDATE" });
+    await openProfile();
+    type(screen.getByLabelText("Nom complet"), "Mariama Camara");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les modifications" }));
+    await settle();
+    // Barre latérale de l'espace : nom de la session, relue après l'enregistrement.
+    assert.ok(screen.getAllByText("Mariama Camara").length >= 1);
+  });
+
+  it("vérifie le nom avant l'envoi", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    await renderApp();
+    await openProfile();
+    type(screen.getByLabelText("Nom complet"), " ");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les modifications" }));
+    await settle();
+    assert.ok(
+      screen.getAllByText("Le nom complet doit contenir entre 2 et 100 caractères.").length >= 1,
+    );
+    assert.equal(api.calls.filter((call) => call.method === "PATCH").length, 0);
+  });
+
+  it("dépose un CV, le télécharge puis le retire", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    await renderApp();
+    await openProfile();
+    screen.getByText("Aucun CV déposé");
+
+    await chooseFile(pdfFile("CV Mariama.pdf"));
+    screen.getByText("CV enregistré.");
+    screen.getByText("CV Mariama.pdf");
+    assert.equal(api.storedCvCount(), 1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Télécharger" }));
+    await settle();
+    assert.deepEqual(
+      savedFiles.map((file) => file.name),
+      ["CV Mariama.pdf"],
+    );
+    // Téléchargé avec le jeton de la session, pas par un lien public.
+    const download = api.calls.find(
+      (call) => call.method === "GET" && call.path === "/candidates/me/cv",
+    )!;
+    assert.match(download.authorization ?? "", /^Bearer /);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retirer" }));
+    await settle();
+    screen.getByText("Aucun CV déposé");
+    assert.equal(api.storedCvCount(), 0);
+  });
+
+  it("refuse avant l'envoi un fichier qui n'est pas un PDF ou qui dépasse 5 Mo", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    await renderApp();
+    await openProfile();
+    await chooseFile(new File(["texte"], "cv.docx", { type: "application/msword" }));
+    assert.match(screen.getByRole("alert").textContent ?? "", /doit être un fichier PDF/);
+    await chooseFile(
+      new File([new Uint8Array(5 * 1024 * 1024 + 1)], "gros.pdf", { type: "application/pdf" }),
+    );
+    assert.match(screen.getByRole("alert").textContent ?? "", /ne doit pas dépasser 5 Mo/);
+    assert.equal(cvCalls(api).length, 0);
+  });
+
+  it("un faux PDF (renommé) est refusé par le serveur", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    await renderApp();
+    await openProfile();
+    await chooseFile(new File(["MZ programme"], "cv.pdf", { type: "application/pdf" }));
+    assert.equal(cvCalls(api).length, 1);
+    assert.match(screen.getByRole("alert").textContent ?? "", /Le CV doit être un fichier PDF/);
+    screen.getByText("Aucun CV déposé");
+  });
+
+  it("le CV est joint à la candidature et l'entreprise peut le télécharger", async () => {
+    const api = installFakeApi();
+    // La candidate n'a pas encore postulé à l'offre de Kamsar (on retire celle du seed).
+    const seeded = api
+      .applications()
+      .findIndex((a) => a.candidateEmail === MARIAMA && a.offerId === KAMSAR_OFFER_ID);
+    api.applications().splice(seeded, 1);
+    await renderApp();
+    await loginWithForm("CANDIDATE");
+    openTab("Mon profil");
+    await settle();
+    await chooseFile(pdfFile("CV Mariama.pdf", "CV pour Kamsar"));
+
+    await goTo("Offres");
+    fireEvent.click(screen.getByText("Assistant·e marketing digital"));
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "Postuler maintenant" }));
+    screen.getByText("CV joint : CV Mariama.pdf");
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer ma candidature" }));
+    await settle();
+    screen.getByText("Candidature envoyée");
+    await goTo("Espace candidat");
+    fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+    await settle();
+
+    await loginWithForm("COMPANY");
+    openTab("Candidatures");
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "Télécharger le CV de Mariama Diallo" }));
+    await settle();
+    assert.deepEqual(
+      savedFiles.map((file) => file.name),
+      ["CV Mariama.pdf"],
+    );
+    assert.equal(await savedFiles[0].blob.text(), "%PDF-1.4\nCV pour Kamsar\n%%EOF");
+    // Abdoulaye n'a pas de CV : pas de bouton.
+    assert.equal(
+      screen.queryByRole("button", { name: "Télécharger le CV de Abdoulaye Bah" }),
+      null,
+    );
   });
 });

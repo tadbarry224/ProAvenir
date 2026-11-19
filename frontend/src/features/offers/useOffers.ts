@@ -43,6 +43,7 @@ type LoadState =
       userId: string | null;
       offers: Offer[];
       today: string;
+      companyName: string;
       companyStatus: CompanyStatus;
       rejectionReason: string | null;
       error?: undefined;
@@ -56,6 +57,7 @@ export type CompanyOffersState = {
   offers: Offer[];
   /** Date du jour à Conakry renvoyée par l'API (date du navigateur avant le chargement). */
   today: string;
+  companyName: string | null;
   /** Statut de l'entreprise selon l'API, null tant qu'il n'est pas connu. */
   companyStatus: CompanyStatus | null;
   /** Motif du refus de l.administration (entreprise refusée), sinon null. */
@@ -126,6 +128,7 @@ export function useOffers({
           userId,
           offers: result.offers.map(companyOfferFromApi),
           today: result.today,
+          companyName: result.company.name,
           companyStatus: result.company.status,
           rejectionReason: result.company.rejectionReason ?? null,
         });
@@ -183,6 +186,7 @@ export function useOffers({
     error: state.status === "error" && state.userId === userId ? state.error : "",
     offers: success?.offers ?? [],
     today: success?.today ?? todayIsoDate(),
+    companyName: success?.companyName ?? null,
     companyStatus: success?.companyStatus ?? null,
     rejectionReason: success?.rejectionReason ?? null,
     cityOptions,

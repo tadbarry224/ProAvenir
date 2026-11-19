@@ -14,9 +14,11 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccessTokenSource } from "../../services/apiClient";
+import { saveFile } from "../../lib/saveFile";
 import {
   applyToOffer,
   changeApplicationStatus,
+  downloadApplicationCv,
   fetchMyApplications,
   fetchReceivedApplications,
   type ApplicationStatusTarget,
@@ -131,6 +133,9 @@ function useProtectedList<T extends { id: string }>(
     pending,
     reload: () => setAttempt((n) => n + 1),
     run,
+    /** Session actuelle (pour une requête qui ne modifie pas la liste, ex. un téléchargement). */
+    session: () => sessionRef.current,
+    sessionExpired: () => expiredRef.current?.(),
   };
 }
 
@@ -177,6 +182,8 @@ export type ReceivedApplicationsState = {
     applicationId: string,
     status: ApplicationStatusTarget,
   ) => Promise<ApplicationActionError | null>;
+  /** Télécharge le CV joint ; null si le téléchargement a démarré, sinon l'erreur. */
+  downloadCv: (applicationId: string, fileName: string) => Promise<ApplicationActionError | null>;
 };
 
 export function useReceivedApplications(options: ListOptions): ReceivedApplicationsState {
@@ -190,5 +197,15 @@ export function useReceivedApplications(options: ListOptions): ReceivedApplicati
     reload: list.reload,
     changeStatus: (applicationId, status) =>
       list.run(applicationId, (session) => changeApplicationStatus(session, applicationId, status)),
+    downloadCv: async (applicationId, fileName) => {
+      try {
+        saveFile(await downloadApplicationCv(list.session(), applicationId), fileName);
+        return null;
+      } catch (error) {
+        const failure = applicationErrorFromApi(error);
+        if (failure.kind === "session") list.sessionExpired();
+        return failure;
+      }
+    },
   };
 }

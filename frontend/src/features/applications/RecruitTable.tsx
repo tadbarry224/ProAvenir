@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import {
   NEXT_APPLICATION_STATUSES,
   APPLICATION_STATUS_LABELS,
@@ -16,6 +17,7 @@ export function RecruitTable({
   updateStatus,
   pending,
   readOnly,
+  onDownloadCv,
 }: {
   items: RecruitApplicationView[];
   updateStatus: (id: string, status: ApplicationStatusTarget) => void;
@@ -23,6 +25,8 @@ export function RecruitTable({
   pending?: string | null;
   /** Entreprise refusée : suivi en lecture seule. */
   readOnly?: boolean;
+  /** Télécharge le CV joint à la candidature (absent : pas de bouton). */
+  onDownloadCv?: (id: string, fileName: string) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -58,6 +62,18 @@ export function RecruitTable({
                 <td>
                   {item.role}
                   {item.message && <small className="italic">« {item.message} »</small>}
+                  {item.cvFileName && onDownloadCv && (
+                    <small>
+                      <button
+                        type="button"
+                        onClick={() => onDownloadCv(item.id, item.cvFileName!)}
+                        className="text-link text-xs"
+                        aria-label={`Télécharger le CV de ${item.name}`}
+                      >
+                        <Download size={13} /> CV
+                      </button>
+                    </small>
+                  )}
                 </td>
                 <td>{item.date}</td>
                 <td>

@@ -16,6 +16,14 @@ import type { UserRole } from "../types/auth";
 /** Date figée : les offres visibles et les dates affichées ne dépendent pas du jour du test. */
 export const FIXED_NOW = new Date("2026-11-12T10:00:00.000Z");
 
+/** Fichiers que l'application a proposé d'enregistrer (CV téléchargés) pendant le test. */
+export const savedFiles: { name: string; blob: Blob }[] = [];
+
+/** Un faux PDF (commence par « %PDF- », comme un vrai) pour les dépôts de CV. */
+export function pdfFile(name = "Mon CV.pdf", text = "contenu"): File {
+  return new File([`%PDF-1.4\n${text}\n%%EOF`], name, { type: "application/pdf" });
+}
+
 /** À appeler dans chaque `describe` de test d'interface. */
 export function setupAppTest() {
   beforeEach(() => {
@@ -26,6 +34,20 @@ export function setupAppTest() {
     window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
     // Chaque test démarre sur l'accueil (« / ») : l'adresse ne fuit pas d'un test à l'autre.
     window.history.replaceState(null, "", "/");
+    // Téléchargements (saveFile) : jsdom n'a ni URL.createObjectURL ni vraie navigation.
+    // On note simplement le fichier proposé à l'utilisateur (voir `savedFiles`).
+    savedFiles.length = 0;
+    let lastBlob: Blob | null = null;
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      lastBlob = blob;
+      return "blob:proavenir-test";
+    });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      if (this.download && lastBlob) savedFiles.push({ name: this.download, blob: lastBlob });
+    });
     // Faux serveur par défaut ; un test peut le réinstaller (ex. installFakeApi({ down: true })).
     installFakeApi();
   });
@@ -33,6 +55,7 @@ export function setupAppTest() {
     cleanup(); // retire l'application du faux document entre deux tests
     vi.useRealTimers();
     vi.unstubAllGlobals(); // rétablit le vrai `fetch`
+    vi.restoreAllMocks(); // retire les espions (clic sur les liens de téléchargement)
   });
 }
 

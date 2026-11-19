@@ -9,9 +9,11 @@ valide les entreprises.
 > espaces candidat, entreprise et administration sont réels (sessions sécurisées). Les **offres de
 > l'espace entreprise** sont réelles (création, brouillons, publication, clôture, réouverture), tout
 > comme la **vérification des entreprises** par l'administration (approbation, refus motivé) et les
-> **candidatures** (un candidat postule, suit ses candidatures ; l'entreprise les traite). Le profil
-> détaillé, le dépôt de CV et la modération des offres arrivent ensuite : les écrans concernés le
-> signalent, sans aucune donnée inventée.
+> **candidatures** (un candidat postule, suit ses candidatures ; l'entreprise les traite), ainsi que le **profil
+> candidat** et le **dépôt de CV** en PDF (joint aux candidatures, téléchargeable par l'entreprise).
+> Les entreprises peuvent modifier leur profil. Un changement de nom déclenche une nouvelle
+> validation administrative et suspend la visibilité des offres jusqu’à l’approbation.
+> La modération des offres est le prochain chantier.
 
 ## Sommaire
 
@@ -85,6 +87,7 @@ La documentation détaillée se trouve dans :
 | `POST /api/auth/logout`                     | Déconnexion : révoque la session                                                                      |
 | `GET /api/auth/me`                          | Utilisateur connecté (jeton d'accès obligatoire)                                                      |
 | `GET /api/companies/me/offers`              | Offres de l'entreprise connectée, tous statuts, avec le nombre réel de candidatures (rôle entreprise) |
+| `GET` / `PATCH /api/companies/me/profile` | Lire ou modifier le nom, le secteur, la ville, la description et les coordonnées de l’entreprise connectée |
 | `POST /api/companies/me/offers`             | Crée une offre : brouillon, ou publication directe si l'entreprise est validée (rôle entreprise)      |
 | `PATCH /api/companies/me/offers/:id/status` | Publier un brouillon, clôturer ou rouvrir une offre de son entreprise (rôle entreprise)               |
 | `GET /api/admin/companies`                  | Toutes les entreprises, en attente d'abord (rôle administrateur)                                      |
@@ -92,6 +95,9 @@ La documentation détaillée se trouve dans :
 | `GET /api/candidates/me/applications`       | Candidatures du candidat connecté (rôle candidat)                                                     |
 | `POST /api/candidates/me/applications`      | Postuler à une offre publique, une seule fois par offre (rôle candidat)                               |
 | `GET /api/companies/me/applications`        | Candidatures reçues sur les offres de l'entreprise (rôle entreprise)                                  |
+| `GET /api/companies/me/applications/:id/cv` | Télécharger le CV joint à une candidature reçue (rôle entreprise)                                     |
+| `GET` / `PATCH /api/candidates/me/profile`  | Lire / modifier son profil (nom, ville, formation, présentation, compétences ; rôle candidat)         |
+| `PUT` / `GET` / `DELETE /api/candidates/me/cv` | Déposer ou remplacer (PDF, 5 Mo) / télécharger / retirer son CV (rôle candidat)                   |
 | `PATCH /api/companies/me/applications/:id/status` | Faire avancer une candidature : en examen, présélectionnée, retenue ou refusée (rôle entreprise) |
 
 Une offre n'est publique que si elle est publiée, que sa date limite n'est pas dépassée (le
@@ -205,6 +211,7 @@ secret. Après une modification, redémarrez `npm run dev`.
 | `JWT_ACCESS_SECRET`      | _(secret, 32 caractères minimum)_                                              | Signature des jetons d'accès. « change-me » est refusé ; une valeur de démonstration est refusée en production |
 | `ACCESS_TOKEN_TTL`       | `15m`                                                                          | Durée de vie d'un jeton d'accès (entre `1m` et `1h`)                                                           |
 | `REFRESH_TOKEN_TTL_DAYS` | `30`                                                                           | Durée maximale d'une session « Se souvenir de moi » (1 à 90 jours)                                             |
+| `CV_STORAGE_DIR`         | `storage/cvs`                                                                  | Dossier des CV déposés (relatif à `backend/`, jamais versionné). Facultatif                                    |
 
 Le mot de passe doit être **identique** dans `POSTGRES_PASSWORD` et dans `DATABASE_URL`. Ces
 variables sont vérifiées au démarrage de l'API : une valeur manquante ou invalide l'empêche de

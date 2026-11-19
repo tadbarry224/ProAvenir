@@ -74,6 +74,7 @@ describe("toRecruitApplicationView", () => {
       status: "IN_REVIEW",
       statusLabel: "En examen",
       message: "Bonjour",
+      cvFileName: null,
     });
   });
 });

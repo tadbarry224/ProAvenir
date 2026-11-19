@@ -58,4 +58,6 @@ export type RecruitApplicationView = {
   status: ApplicationStatus;
   statusLabel: string;
   message: string | null;
+  /** Nom du CV joint (téléchargeable), null s'il n'y en a pas. */
+  cvFileName: string | null;
 };

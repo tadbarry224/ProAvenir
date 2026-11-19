@@ -29,6 +29,7 @@ export const ADMIN_COMPANY_ERROR_CODES = {
   invalidCompanyId: 'INVALID_COMPANY_ID',
   companyNotFound: 'COMPANY_NOT_FOUND',
   alreadyInStatus: 'COMPANY_ALREADY_IN_STATUS',
+  identityChanged: 'COMPANY_IDENTITY_CHANGED',
 } as const;
 
 export const COMPANY_NOT_FOUND = 'Entreprise introuvable.';

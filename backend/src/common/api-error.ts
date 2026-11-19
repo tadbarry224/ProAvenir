@@ -22,6 +22,7 @@ import {
   ForbiddenException,
   HttpException,
   NotFoundException,
+  PayloadTooLargeException,
   type ValidationError,
 } from '@nestjs/common';
 
@@ -47,6 +48,7 @@ const EXCEPTIONS = {
   403: { error: 'Forbidden', Exception: ForbiddenException },
   404: { error: 'Not Found', Exception: NotFoundException },
   409: { error: 'Conflict', Exception: ConflictException },
+  413: { error: 'Payload Too Large', Exception: PayloadTooLargeException },
 } as const;
 
 /**

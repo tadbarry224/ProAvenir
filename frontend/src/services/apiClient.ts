@@ -55,10 +55,12 @@ function errorDetails(body: unknown): ApiErrorDetail[] {
 export type QueryParams = Record<string, string | undefined>;
 
 export type ApiRequestOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   params?: QueryParams;
-  /** Corps JSON de la requête. */
+  /** Corps de la requête : objet envoyé en JSON, ou FormData (envoi de fichier). */
   body?: unknown;
+  /** "blob" : la réponse est un fichier (ex. CV en PDF) au lieu de JSON. */
+  responseType?: "json" | "blob";
   /** Annulation (ex. l'utilisateur change de filtre). */
   signal?: AbortSignal;
   headers?: Record<string, string>;
@@ -99,7 +101,9 @@ function serverMessage(body: unknown): string | undefined {
  * réponse sans contenu, 204).
  */
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { method = "GET", params, body, signal, headers, credentials } = options;
+  const { method = "GET", params, body, signal, headers, credentials, responseType } = options;
+  // Un fichier (FormData) part tel quel : le navigateur fixe lui-même le Content-Type.
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   const url = apiUrl(path, params);
 
   // Annulation : par l'appelant OU après TIMEOUT_MS.
@@ -113,11 +117,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     response = await fetch(url, {
       method,
       headers: {
-        Accept: "application/json",
-        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        Accept: responseType === "blob" ? "application/pdf, application/json" : "application/json",
+        ...(body === undefined || isForm ? {} : { "Content-Type": "application/json" }),
         ...headers,
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
       credentials,
       signal: controller.signal,
     });
@@ -135,6 +139,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   if (response.status === 204) return undefined as T;
+  if (responseType === "blob" && response.ok) return (await response.blob()) as T;
 
   let data: unknown;
   try {

@@ -118,6 +118,7 @@ clôturée, expirée ou d'une entreprise non validée donne la **même** répons
 | Route | Accès | Réponse |
 | --- | --- | --- |
 | `GET /api/companies/me/offers` | rôle `COMPANY` | `{ data: [offre…], meta: { total, today, company: { name, status, rejectionReason } } }` (motif du refus montré à l’entreprise, null sinon) |
+| `GET` / `PATCH /api/companies/me/profile` | rôle `COMPANY` | Renvoie `{ name, sector, city, description, contactEmail, phone, status }`. Le PATCH accepte les champs modifiables et reçoit la ville via `cityId`. |
 | `POST /api/companies/me/offers` | rôle `COMPANY` | 201 + l'offre créée (même forme qu'un élément de `data`) |
 | `PATCH /api/companies/me/offers/:id/status` | rôle `COMPANY` | `{ status: "PUBLISHED" \| "CLOSED" }` → 200 + l'offre à jour |
 
@@ -200,12 +201,46 @@ clôturée, expirée ou d'une entreprise non validée donne la **même** répons
   `APPLICATION_NOT_FOUND`. Entreprise refusée : lecture seule (**403** `COMPANY_REJECTED`).
   Identifiant mal formé : **400** `INVALID_APPLICATION_ID`.
 
+## Profil candidat et CV (B6)
+
+| Route | Accès | Réponse |
+| --- | --- | --- |
+| `GET /api/candidates/me/profile` | rôle `CANDIDATE` | `{ fullName, email, city, education, bio, skills, cv: { fileName, size, uploadedAt } \| null }` |
+| `PATCH /api/candidates/me/profile` | rôle `CANDIDATE` | champs envoyés seulement (texte vide = effacer) → 200 + le profil |
+| `PUT /api/candidates/me/cv` | rôle `CANDIDATE` | multipart, champ `cv` (PDF, 5 Mo au plus) → 200 + le profil |
+| `GET /api/candidates/me/cv` | rôle `CANDIDATE` | le PDF (téléchargement) |
+| `DELETE /api/candidates/me/cv` | rôle `CANDIDATE` | 200 + le profil (`cv: null`) |
+| `GET /api/companies/me/applications/:id/cv` | rôle `COMPANY` | le PDF joint à une candidature reçue |
+
+- Le **nom complet** modifié est enregistré sur le compte (`User.fullName`). Ville inconnue : **400**
+  `VALIDATION_FAILED` (détail sur `cityId`). Champ non prévu (e-mail, CV…) : **400**.
+- **CV** : le contenu doit commencer par `%PDF-` (l'extension et le type annoncé ne suffisent pas),
+  sinon **400** `CV_NOT_PDF` ; plus de 5 Mo : **413** `CV_TOO_LARGE` ; aucun fichier : **400**
+  `CV_REQUIRED` ; rien à télécharger : **404** `CV_NOT_FOUND`.
+- **Stockage** : le fichier est écrit dans `CV_STORAGE_DIR` (par défaut `backend/storage/cvs`, ignoré
+  par Git) sous `<uuid>.pdf`, un nom choisi par le serveur ; la base ne garde que la clé, le nom
+  d'origine nettoyé, la taille et la date (contraintes CHECK : 5 Mo au plus, champs tous remplis
+  ou tous vides). Le nom d'origine ne sert jamais de chemin.
+- **Candidature** : le CV du profil est recopié au moment de postuler. Remplacer ou retirer son CV ne
+  change pas ce que le recruteur a reçu : l'ancien fichier n'est supprimé que si aucune candidature
+  ne l'a transmis.
+- **Téléchargement** : `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`,
+  `Cache-Control: no-store`. Une entreprise ne télécharge que les CV des candidatures reçues sur
+  ses offres (sinon **404**).
+- Les données de démonstration ont un nom de CV sans fichier : l'API ne les présente pas comme un
+  CV (`cv: null`, `cvFileName: null`).
+
 ## Administration : vérification des entreprises
 
 | Route | Accès | Réponse |
 | --- | --- | --- |
 | `GET /api/admin/companies` | rôle `ADMIN` | `{ data: [entreprise…], meta: { total, pending } }`, en attente d'abord puis les plus récentes |
 | `PATCH /api/admin/companies/:id/status` | rôle `ADMIN` | `{ status: "APPROVED" }` ou `{ status: "REJECTED", reason }` → 200 + l'entreprise à jour |
+
+Une entreprise retrouve le statut `PENDING` quand son nom change. Ses offres publiées
+reprennent leur visibilité après réapprobation si elles sont toujours publiées et valides.
+Le champ facultatif `expectedName` d’une décision administrative permet de refuser avec un
+409 une décision fondée sur un nom obsolète. L’interface d’administration envoie le nom affiché.
 
 - Une entreprise contient : `id`, `name`, `sector`, `city`, `status`, `rejectionReason`,
   `createdAt`, `reviewedAt`, `offersCount` (`adminCompanySelect` dans
@@ -304,6 +339,8 @@ backend/
 │   ├── offers/            GET /api/offers et /api/offers/:id (filtres validés par ListOffersQueryDto)
 │   ├── company-offers/    GET /api/companies/me/offers (offres de l'entreprise connectée)
 │   ├── admin-companies/   GET|PATCH /api/admin/companies (vérification des entreprises)
-│   └── applications/      candidatures : /api/candidates/me/… et /api/companies/me/applications
+│   ├── applications/      candidatures : /api/candidates/me/… et /api/companies/me/applications
+│   ├── candidate-profile/ profil candidat et CV : /api/candidates/me/profile et /…/cv
+│   └── storage/           stockage des CV sur le disque (CV_STORAGE_DIR)
 └── test/                  tests de bout en bout
 ```

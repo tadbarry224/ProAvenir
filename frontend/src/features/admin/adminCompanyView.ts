@@ -40,6 +40,7 @@ export function adminErrorFromApi(error: unknown): AdminActionError {
   }
   switch (error.code) {
     case ADMIN_COMPANY_ERROR_CODES.alreadyInStatus:
+    case ADMIN_COMPANY_ERROR_CODES.identityChanged:
       // Un autre administrateur (ou un autre onglet) a déjà décidé.
       return { kind: "stale", message: `${error.message} La liste a été mise à jour.` };
     case ADMIN_COMPANY_ERROR_CODES.companyNotFound:

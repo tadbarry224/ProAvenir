@@ -108,9 +108,15 @@ model CandidateProfile {
   /// « Présentation »
   bio          String?
   skills       String[]      @default([])
-  /// Emplacement du fichier stocké (phase B6). Le fichier n'est jamais en base.
+  /// Clé du fichier stocké (UUID, fichier « <clé>.pdf » dans CV_STORAGE_DIR, phase B6).
+  /// Le fichier n'est jamais en base.
   cvFileKey    String?
+  /// Nom d'origine du fichier (affichage et téléchargement), nettoyé par le backend.
   cvFileName   String?
+  /// Taille du CV en octets (5 Mo au plus, CHECK).
+  cvFileSize   Int?
+  /// Date du dernier dépôt du CV.
+  cvUploadedAt DateTime?     @db.Timestamptz(3)
   applications Application[]
   createdAt    DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime      @updatedAt @db.Timestamptz(3)

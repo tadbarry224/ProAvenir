@@ -6,6 +6,9 @@ coverage/
 # Client Prisma généré (recréé par `npx prisma generate`)
 /src/generated/
 
+# CV déposés par les candidats (données personnelles : jamais versionnés)
+/storage/
+
 # Secrets : seul .env.example est versionné
 .env
 .env.*

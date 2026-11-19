@@ -44,6 +44,7 @@ export function toRecruitApplicationView(
     status: application.status,
     statusLabel: APPLICATION_STATUS_LABELS[application.status],
     message: application.message,
+    cvFileName: application.cvFileName,
   };
 }
 

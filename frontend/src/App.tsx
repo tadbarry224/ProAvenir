@@ -14,6 +14,7 @@ import { PROTECTED_PAGES, ROLE_HOME, type UserRole } from "./types/auth";
 import { AuthProvider } from "./features/auth/AuthProvider";
 import { useAuth } from "./features/auth/authContext";
 import { identityOf } from "./features/auth/identity";
+import { useCandidateProfile } from "./features/candidate/useCandidateProfile";
 import { useOffers } from "./features/offers/useOffers";
 import { useAdminCompanies } from "./features/admin/useAdminCompanies";
 import { usePublicOffers } from "./features/offers/usePublicOffers";
@@ -147,6 +148,16 @@ function ProAvenirApp() {
     enabled: isRole("CANDIDATE"),
     onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
   });
+  // Profil et CV du candidat (API) : chargés dès qu'il est connecté (la fenêtre de
+  // candidature indique le CV qui sera transmis).
+  const candidateProfile = useCandidateProfile({
+    session: auth,
+    userId: auth.user?.id ?? null,
+    enabled: isRole("CANDIDATE"),
+    onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
+    // Nouveau nom : la session est relue pour l'afficher partout (en-tête, barre latérale).
+    onNameChanged: () => void auth.renewAccessToken(),
+  });
   // Candidatures reçues par l'entreprise : chargées à l'ouverture de son espace.
   const receivedApplications = useReceivedApplications({
     session: auth,
@@ -201,6 +212,7 @@ function ProAvenirApp() {
               viewerRole={auth.status === "authenticated" ? (auth.user?.role ?? null) : null}
               onLogin={loginAndReturn}
               applications={candidateApplications}
+              cvFileName={candidateProfile.profile?.cv?.fileName ?? null}
             />
           }
         />
@@ -229,6 +241,7 @@ function ProAvenirApp() {
                 go={go}
                 identity={identity}
                 applications={candidateApplications}
+                profile={candidateProfile}
               />
             )
           }
@@ -239,15 +252,16 @@ function ProAvenirApp() {
             allowed &&
             identity && (
               <CompanyDashboard
+                key={auth.user?.id}
                 go={go}
-                company={{
-                  name: identity.name,
-                  initials: identity.initials,
-                  logoColor: auth.user?.company?.logoColor ?? "blue",
-                }}
+                logoColor={auth.user?.company?.logoColor ?? "blue"}
                 identity={identity}
                 companyOffers={companyOffers}
                 applications={receivedApplications}
+                onProfileSaved={() => {
+                  companyOffers.reload();
+                  reloadPublicOffers();
+                }}
               />
             )
           }

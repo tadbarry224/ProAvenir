@@ -6,6 +6,8 @@
  * Les valeurs sont lues dans backend/.env (voir .env.example).
  */
 
+import { resolve } from 'node:path';
+
 export type NodeEnv = 'development' | 'test' | 'production';
 
 export interface EnvironmentVariables {
@@ -20,6 +22,8 @@ export interface EnvironmentVariables {
   ACCESS_TOKEN_TTL_SECONDS: number;
   /** Durée maximale d'une session « Se souvenir de moi », en jours. */
   REFRESH_TOKEN_TTL_DAYS: number;
+  /** Dossier des CV déposés (chemin absolu, issu de CV_STORAGE_DIR, « storage/cvs » par défaut). */
+  CV_STORAGE_DIR: string;
 }
 
 /** Morceaux de texte qui trahissent un secret d'exemple ou de démonstration. */
@@ -105,6 +109,9 @@ export function validateEnv(
     errors.push('REFRESH_TOKEN_TTL_DAYS doit être un entier entre 1 et 90.');
   }
 
+  // Relatif au dossier depuis lequel l'API est lancée (backend/ avec les scripts npm).
+  const cvStorageDir = resolve(text('CV_STORAGE_DIR') || 'storage/cvs');
+
   if (errors.length > 0) {
     throw new Error(
       `Configuration invalide (backend/.env) :\n- ${errors.join('\n- ')}`,
@@ -119,5 +126,6 @@ export function validateEnv(
     JWT_ACCESS_SECRET: jwtSecret,
     ACCESS_TOKEN_TTL_SECONDS: accessTtl as number,
     REFRESH_TOKEN_TTL_DAYS: refreshDays,
+    CV_STORAGE_DIR: cvStorageDir,
   };
 }

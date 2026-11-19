@@ -194,6 +194,123 @@ describe('Vérification des entreprises par l’administration (e2e)', () => {
     });
   });
 
+  describe('Profil entreprise', () => {
+    const path = '/api/companies/me/profile';
+    const asOwner = () => bearer(USER.owner, 'COMPANY');
+
+    it('charge et modifie le profil de la session, avec validation des champs', async () => {
+      await http().get(path).expect(401);
+      await http().get(path).set('Authorization', asAdmin()).expect(403);
+      await http()
+        .patch(path)
+        .set('Authorization', asAdmin())
+        .send({ sector: 'Commerce' })
+        .expect(403);
+      await http()
+        .get(path)
+        .set('Authorization', asOwner())
+        .expect(200)
+        .expect(({ body }) => expect(body.name).toBe('[e2e-admin] En attente'));
+
+      for (const invalid of [
+        { cityId: 'ville-inconnue' },
+        { name: null },
+        { contactEmail: 'invalide' },
+        { phone: 'abc' },
+        { status: 'APPROVED' },
+        { companyId: COMPANY.other },
+      ]) {
+        await http()
+          .patch(path)
+          .set('Authorization', asOwner())
+          .send(invalid)
+          .expect(400);
+      }
+
+      await review(COMPANY.pending, { status: 'APPROVED' }).expect(200);
+      const updated = await http()
+        .patch(path)
+        .set('Authorization', asOwner())
+        .send({
+          name: '  [e2e-admin]  En attente ',
+          sector: ' Commerce ',
+          cityId: 'conakry',
+          description: 'Notre activité',
+          contactEmail: 'contact@example.test',
+          phone: '+224 620 00 00 00',
+        })
+        .expect(200);
+      expect(updated.body).toEqual({
+        name: '[e2e-admin] En attente',
+        sector: 'Commerce',
+        city: { id: 'conakry', name: 'Conakry' },
+        description: 'Notre activité',
+        contactEmail: 'contact@example.test',
+        phone: '+224 620 00 00 00',
+        status: 'APPROVED',
+      });
+      await http()
+        .get(path)
+        .set('Authorization', asOwner())
+        .expect(200, updated.body);
+      await http()
+        .patch(path)
+        .set('Authorization', asOwner())
+        .send({ contactEmail: '', cityId: null })
+        .expect(200)
+        .expect(({ body }) =>
+          expect(body).toMatchObject({
+            contactEmail: null,
+            city: null,
+            sector: 'Commerce',
+          }),
+        );
+    });
+
+    it('suspend les offres après un changement de nom jusqu’à la nouvelle approbation', async () => {
+      await prisma.companyMember.update({
+        where: { userId: USER.owner },
+        data: { companyId: COMPANY.approved },
+      });
+      const offerPath = `/api/offers/${OFFER.published}`;
+      await http().get(offerPath).expect(200);
+      const name = '[e2e-admin] Nouveau nom';
+      await http()
+        .patch(path)
+        .set('Authorization', asOwner())
+        .send({ name })
+        .expect(200)
+        .expect(({ body }) =>
+          expect(body).toMatchObject({ name, status: 'PENDING' }),
+        );
+      await http().get(offerPath).expect(404);
+      expect(
+        testCompanies(await listAsAdmin()).find(
+          (c) => c.id === COMPANY.approved,
+        ),
+      ).toMatchObject({
+        name,
+        status: 'PENDING',
+        reviewedAt: null,
+        rejectionReason: null,
+      });
+
+      const stale = await review(COMPANY.approved, {
+        status: 'APPROVED',
+        expectedName: '[e2e-admin] Validée',
+      }).expect(409);
+      expect(stale.body.code).toBe('COMPANY_IDENTITY_CHANGED');
+      await review(COMPANY.approved, {
+        status: 'APPROVED',
+        expectedName: name,
+      }).expect(200);
+      await http()
+        .get(offerPath)
+        .expect(200)
+        .expect(({ body }) => expect(body.company.name).toBe(name));
+    });
+  });
+
   describe('GET /api/admin/companies', () => {
     it('liste les entreprises, celles en attente d’abord', async () => {
       const body = await listAsAdmin();

@@ -77,6 +77,7 @@ describe("Rendu de l'espace candidat", () => {
     const { container } = await renderApp({ as: "CANDIDATE" });
     await goTo("Espace candidat");
     openTab(tab);
+    await settle(); // villes du formulaire de profil (chargées à l'ouverture de l'onglet)
     await expectScreen(container, name);
   });
 });
@@ -93,6 +94,7 @@ describe("Rendu de l'espace entreprise", () => {
     const { container } = await renderApp({ as: "COMPANY" });
     await goTo("Espace entreprise");
     openTab(tab);
+    await settle();
     await expectScreen(container, name);
   });
 

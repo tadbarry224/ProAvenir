@@ -23,7 +23,7 @@ import {
   statusActionBlockedReason,
 } from "../../features/offers/offerRules";
 import type { CompanyOffersState } from "../../features/offers/useOffers";
-import { COMPANY_STATUS_LABELS } from "../../features/auth/identity";
+import { COMPANY_STATUS_LABELS, initialsOfName } from "../../features/auth/identity";
 import type { OfferActionError } from "../../features/offers/companyOfferMapping";
 import { toJobView } from "../../features/offers/toJobView";
 import { formatShortDate } from "../../lib/dates";
@@ -48,26 +48,39 @@ function actionErrorMessage(offer: Offer, error: OfferActionError): string {
 
 export function CompanyDashboard({
   go,
-  company,
+  logoColor,
   identity: sessionIdentity,
   companyOffers,
   applications: received,
+  onProfileSaved,
 }: {
   go: (p: Page) => void;
-  /** Affichage du logo et du nom (issus de la session). */
-  company: Pick<Company, "name" | "initials" | "logoColor">;
+  logoColor: Company["logoColor"];
   /** Entreprise connectée (nom, statut de validation) issue de la session. */
   identity: DashboardIdentity;
   /** Offres RÉELLES de l'entreprise connectée (API), actions et états de chargement. */
   companyOffers: CompanyOffersState;
   /** Candidatures de démonstration (fictives jusqu'à B5). */
   applications: ReceivedApplicationsState;
+  onProfileSaved: () => void;
 }) {
-  const { offers, today, status: offersStatus, companyStatus, pending } = companyOffers;
+  const {
+    offers,
+    today,
+    status: offersStatus,
+    companyStatus,
+    companyName,
+    pending,
+  } = companyOffers;
   // Statut relu par l'API à chaque ouverture de l'espace : il remplace celui de la
   // session, qui peut dater de la connexion (ex. entreprise approuvée depuis).
   const identity = companyStatus
-    ? { ...sessionIdentity, statusLabel: COMPANY_STATUS_LABELS[companyStatus] }
+    ? {
+        ...sessionIdentity,
+        name: companyName ?? sessionIdentity.name,
+        initials: companyName ? initialsOfName(companyName) : sessionIdentity.initials,
+        statusLabel: COMPANY_STATUS_LABELS[companyStatus],
+      }
     : sessionIdentity;
   const [active, setActive] = useState("Aperçu");
   const [publish, setPublish] = useState(false);
@@ -149,6 +162,12 @@ export function CompanyDashboard({
         updateStatus={updateApplicationStatus}
         pending={received.pending}
         readOnly={companyStatus === "REJECTED"}
+        onDownloadCv={(id, fileName) => {
+          resetMessages();
+          void received.downloadCv(id, fileName).then((failure) => {
+            if (failure) setStatusError(failure.message);
+          });
+        }}
       />
     );
   };
@@ -264,7 +283,7 @@ export function CompanyDashboard({
                     <ShieldCheck size={17} /> {COMPANY_STATUS_LABELS[companyStatus]}
                   </span>
                 )}
-                <h3 className="mt-4 font-bold text-[#0c2340]">{company.name}</h3>
+                <h3 className="mt-4 font-bold text-[#0c2340]">{identity.name}</h3>
                 <button
                   onClick={() => setActive("Profil entreprise")}
                   className="btn-secondary mt-5 w-full"
@@ -290,7 +309,11 @@ export function CompanyDashboard({
             />
             <div className="divide-y divide-slate-100">
               {offers.map((offer) => {
-                const view = toJobView(offer, company);
+                const view = toJobView(offer, {
+                  logoColor,
+                  name: identity.name,
+                  initials: identity.initials,
+                });
                 const displayStatus = getDisplayStatus(offer, today);
                 const blockedReason = statusActionBlockedReason(companyStatus, offer.status);
                 return (
@@ -343,7 +366,7 @@ export function CompanyDashboard({
             </div>
           </div>
         )}
-        {active === "Profil entreprise" && <CompanyProfile companyName={identity.name} />}
+        {active === "Profil entreprise" && <CompanyProfile onSaved={onProfileSaved} />}
       </div>
       {publish && (
         <PublishModal

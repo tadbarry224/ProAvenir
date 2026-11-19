@@ -6,8 +6,12 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CurrentUser, Roles, type AuthUser } from '../auth/auth.decorators.js';
+import { pdfDownload } from '../candidate-profile/cv-http.js';
 import { apiError } from '../common/api-error.js';
 import type {
   CandidateApplication,
@@ -68,6 +72,19 @@ export class CompanyApplicationsController {
   @Get()
   list(@CurrentUser() user: AuthUser): Promise<ReceivedApplicationsResponse> {
     return this.applications.listReceived(user.id);
+  }
+
+  /** CV joint à la candidature (PDF à télécharger), si l'offre est à cette entreprise. */
+  @Get(':id/cv')
+  async downloadCv(
+    @CurrentUser() user: AuthUser,
+    @Param('id', applicationIdPipe) applicationId: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    return pdfDownload(
+      await this.applications.downloadReceivedCv(user.id, applicationId),
+      res,
+    );
   }
 
   @Patch(':id/status')

@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { validateEnv } from './env.validation.js';
 
 const valid = {
@@ -22,7 +23,14 @@ describe('validateEnv', () => {
       JWT_ACCESS_SECRET: valid.JWT_ACCESS_SECRET,
       ACCESS_TOKEN_TTL_SECONDS: 900,
       REFRESH_TOKEN_TTL_DAYS: 30,
+      // Par défaut : storage/cvs, à partir du dossier de lancement (backend/).
+      CV_STORAGE_DIR: resolve('storage/cvs'),
     });
+  });
+
+  it('accepte un autre dossier pour les CV', () => {
+    const config = validateEnv({ ...valid, CV_STORAGE_DIR: 'data/cv' });
+    expect(config.CV_STORAGE_DIR).toBe(resolve('data/cv'));
   });
 
   it('refuse un secret JWT absent, trop court ou laissé à « change-me »', () => {

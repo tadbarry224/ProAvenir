@@ -187,27 +187,28 @@
 </div>
 <div class="dashboard-content">
 <form class="content-card max-w-3xl p-6 sm:p-8">
-<div class="grid gap-5 sm:grid-cols-2">
-<label class="form-label sm:col-span-2">Nom de l’entreprise<input required="" value="Kamsar Solutions">
+<fieldset class="grid gap-5 sm:grid-cols-2">
+<label class="form-label sm:col-span-2">Nom de l’entreprise<input id="name" required="" minlength="2" maxlength="120" value="Kamsar Solutions">
+<small class="mt-1 block text-sm font-normal text-slate-600">Un changement de nom déclenche une vérification. La publication et la visibilité des offres sont suspendues jusqu’à l’approbation.</small>
 </label>
-<label class="form-label">Secteur<input placeholder="Ex. Services professionnels">
+<label class="form-label">Secteur<input id="sector" maxlength="120" placeholder="Ex. Services professionnels" value="">
 </label>
-<label class="form-label">Ville<select>
-<option value="" selected="">Choisir une ville</option>
-<option>Conakry</option>
-<option>Kindia</option>
-<option>Labé</option>
-<option>Boké</option>
+<label class="form-label">Ville<select id="cityId">
+<option value="">Choisir une ville</option>
+<option value="boke">Boké</option>
+<option value="conakry">Conakry</option>
+<option value="kindia">Kindia</option>
+<option value="labe">Labé</option>
 </select>
 </label>
-<label class="form-label sm:col-span-2">Description<textarea rows="5" placeholder="Présentez votre entreprise et ses activités.">
+<label class="form-label sm:col-span-2">Description<textarea id="description" rows="5" maxlength="2000" placeholder="Présentez votre entreprise et ses activités.">
 </textarea>
 </label>
-<label class="form-label">E-mail de contact<input placeholder="recrutement@votre-entreprise.gn" type="email">
+<label class="form-label">E-mail de contact<input id="contactEmail" maxlength="254" placeholder="recrutement@votre-entreprise.gn" type="email" value="">
 </label>
-<label class="form-label">Téléphone<input placeholder="+224 …">
+<label class="form-label">Téléphone<input id="phone" maxlength="32" placeholder="+224 …" type="tel" value="">
 </label>
-</div>
+</fieldset>
 <button type="submit" class="btn-primary mt-6">Enregistrer</button>
 </form>
 </div>

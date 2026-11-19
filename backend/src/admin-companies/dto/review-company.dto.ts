@@ -1,7 +1,9 @@
 import { Transform } from 'class-transformer';
 import {
   IsIn,
+  IsString,
   Validate,
+  ValidateIf,
   ValidatorConstraint,
   type ValidationArguments,
   type ValidatorConstraintInterface,
@@ -70,4 +72,8 @@ export class ReviewCompanyDto {
   @Transform(collapse)
   @Validate(ReasonMatchesStatus)
   reason?: string;
+
+  @ValidateIf((_dto, value) => value !== undefined)
+  @IsString()
+  expectedName?: string;
 }

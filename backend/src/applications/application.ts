@@ -44,7 +44,7 @@ export interface ReceivedApplication {
   message: string | null;
   createdAt: string;
   updatedAt: string;
-  /** Nom du CV transmis (dépôt de CV : étape suivante), null sinon. */
+  /** Nom du CV joint à la candidature (téléchargeable), null s’il n’y en a pas. */
   cvFileName: string | null;
   offer: { id: string; title: string };
   candidate: {
@@ -97,6 +97,7 @@ export const receivedApplicationSelect = {
   message: true,
   createdAt: true,
   updatedAt: true,
+  cvFileKey: true,
   cvFileName: true,
   offer: { select: { id: true, title: true } },
   candidate: {
@@ -145,9 +146,12 @@ export function toCandidateApplication(
 }
 
 export function toReceivedApplication(row: ReceivedRow): ReceivedApplication {
-  const { candidate, createdAt, updatedAt, ...rest } = row;
+  const { candidate, createdAt, updatedAt, cvFileKey, cvFileName, ...rest } =
+    row;
   return {
     ...rest,
+    // La clé du fichier reste interne ; un nom sans fichier n'est pas un CV.
+    cvFileName: cvFileKey ? cvFileName : null,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
     candidate: {

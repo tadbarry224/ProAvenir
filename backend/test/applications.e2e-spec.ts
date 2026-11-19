@@ -347,7 +347,8 @@ describe('Candidatures (e2e)', () => {
       expect(application).toMatchObject({
         status: 'SENT',
         message: 'Bonjour',
-        cvFileName: 'cv-e2e.pdf',
+        // Nom de CV sans fichier stocké (profil de test) : pas de CV téléchargeable.
+        cvFileName: null,
         offer: { id: OFFER.aOpen, title: '[e2e-b5] Ouverte A' },
         candidate: {
           fullName: 'E2E c1',

@@ -45,13 +45,22 @@ export class AdminCompaniesService {
     dto: ReviewCompanyDto,
   ): Promise<AdminCompany> {
     return this.prisma.$transaction(async (tx) => {
-      const [locked] = await tx.$queryRaw<{ status: CompanyStatus }[]>`
-        SELECT "status" FROM "Company" WHERE "id" = ${companyId}::uuid FOR UPDATE`;
+      const [locked] = await tx.$queryRaw<
+        { status: CompanyStatus; name: string }[]
+      >`
+        SELECT "status", "name" FROM "Company" WHERE "id" = ${companyId}::uuid FOR UPDATE`;
       if (!locked) {
         throw apiError(
           404,
           ADMIN_COMPANY_ERROR_CODES.companyNotFound,
           COMPANY_NOT_FOUND,
+        );
+      }
+      if (dto.expectedName !== undefined && locked.name !== dto.expectedName) {
+        throw apiError(
+          409,
+          ADMIN_COMPANY_ERROR_CODES.identityChanged,
+          'Le nom de l’entreprise a changé. Vérifiez le nouveau nom avant de décider.',
         );
       }
       const refusal = reviewRefusal(locked.status, dto.status);

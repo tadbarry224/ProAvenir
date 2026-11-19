@@ -4,6 +4,7 @@ import type { Job } from "../../types/offer";
 import type { Page } from "../../types/navigation";
 import type { DashboardIdentity } from "../../types/auth";
 import type { CandidateApplicationsState } from "../../features/applications/useApplications";
+import type { CandidateProfileState } from "../../features/candidate/useCandidateProfile";
 import { StatCard } from "../../components/ui/StatCard";
 import { CardHeading } from "../../components/ui/CardHeading";
 import { MiniJob } from "../../components/jobs/MiniJob";
@@ -17,12 +18,15 @@ export function CandidateDashboard({
   go,
   identity,
   applications: state,
+  profile,
 }: {
   jobs: Job[]; // offres publiques, pour les « Offres recommandées »
   go: (p: Page) => void;
   identity: DashboardIdentity;
   /** Candidatures RÉELLES du candidat connecté (API). */
   applications: CandidateApplicationsState;
+  /** Profil RÉEL du candidat (API). */
+  profile: CandidateProfileState;
 }) {
   const [active, setActive] = useState("Aperçu");
   const { applications } = state;
@@ -120,7 +124,9 @@ export function CandidateDashboard({
                   </span>
                   <div>
                     <p className="text-sm font-bold text-[#0c2340]">{identity.name}</p>
-                    <p className="text-xs text-slate-400">Compte candidat</p>
+                    <p className="text-xs text-slate-400">
+                      {profile.profile?.education ?? "Compte candidat"}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -145,7 +151,7 @@ export function CandidateDashboard({
             </div>
           </>
         )}
-        {active === "Mon profil" && <CandidateProfile fullName={identity.name} />}
+        {active === "Mon profil" && <CandidateProfile state={profile} />}
         {active === "Mes candidatures" && (
           <div className="content-card overflow-hidden">
             <CardHeading title="Toutes mes candidatures" />

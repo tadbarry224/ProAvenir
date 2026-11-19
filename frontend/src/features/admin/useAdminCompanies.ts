@@ -109,7 +109,8 @@ export function useAdminCompanies({
       busy.current = true;
       setPending(companyId);
       try {
-        const updated = await reviewCompany(sessionRef.current, companyId, review);
+        const expectedName = companies.find((company) => company.id === companyId)?.name;
+        const updated = await reviewCompany(sessionRef.current, companyId, review, expectedName);
         // Mise à jour immédiate, puis relecture (l'ordre et les compteurs suivent).
         setState((current) =>
           current.status === "success"

@@ -24,6 +24,7 @@ export function JobDetails({
   applied,
   onApply,
   applying,
+  cvFileName = null,
 }: {
   job: Job;
   go: (page: Page) => void;
@@ -37,6 +38,8 @@ export function JobDetails({
   onApply: (message: string) => Promise<string | null>;
   /** Envoi en cours (bouton désactivé). */
   applying?: boolean;
+  /** CV du profil du candidat, joint à la candidature (null : aucun CV). */
+  cvFileName?: string | null;
 }) {
   const [modal, setModal] = useState(false);
   const [message, setMessage] = useState("");
@@ -171,6 +174,11 @@ export function JobDetails({
                   <p className="text-sm font-bold text-emerald-900">Votre profil candidat</p>
                   <p className="text-xs text-emerald-700">
                     Nom, formation et compétences sont transmis au recruteur.
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-700">
+                    {cvFileName
+                      ? `CV joint : ${cvFileName}`
+                      : "Aucun CV : vous pouvez en déposer un depuis votre profil."}
                   </p>
                 </div>
               </div>

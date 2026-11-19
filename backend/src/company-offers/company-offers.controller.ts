@@ -1,7 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { CurrentUser, Roles, type AuthUser } from '../auth/auth.decorators.js';
-import type { CompanyOffersResponse } from './company-offer.js';
+import type { CompanyOffer, CompanyOffersResponse } from './company-offer.js';
 import { CompanyOffersService } from './company-offers.service.js';
+import { CreateCompanyOfferDto } from './dto/create-company-offer.dto.js';
 
 /**
  * Offres de l'entreprise connectée (espace entreprise).
@@ -23,5 +24,17 @@ export class CompanyOffersController {
   @Get()
   list(@CurrentUser() user: AuthUser): Promise<CompanyOffersResponse> {
     return this.companyOffers.listMine(user.id);
+  }
+
+  /**
+   * POST /api/companies/me/offers : crée un brouillon ou publie directement (201).
+   * Le corps est validé par CreateCompanyOfferDto (champs inconnus refusés).
+   */
+  @Post()
+  create(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateCompanyOfferDto,
+  ): Promise<CompanyOffer> {
+    return this.companyOffers.create(user.id, dto);
   }
 }

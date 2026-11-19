@@ -69,18 +69,19 @@ La documentation détaillée se trouve dans :
 
 ### API disponible
 
-| Route                          | Description                                                                                           |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `GET /api/health`              | État de l'API et de la connexion à la base                                                            |
-| `GET /api/cities`              | Villes (ordre alphabétique)                                                                           |
-| `GET /api/domains`             | Domaines professionnels (ordre alphabétique)                                                          |
-| `GET /api/offers`              | Offres publiques, filtrables par `city`, `domain`, `type` (`JOB` / `INTERNSHIP`) et `q` (recherche)   |
-| `POST /api/auth/register`      | Inscription d'un candidat ou d'une entreprise (jamais d'administrateur)                               |
-| `POST /api/auth/login`         | Connexion (5 tentatives par minute et par adresse IP)                                                 |
-| `POST /api/auth/refresh`       | Renouvelle la session à partir du cookie                                                              |
-| `POST /api/auth/logout`        | Déconnexion : révoque la session                                                                      |
-| `GET /api/auth/me`             | Utilisateur connecté (jeton d'accès obligatoire)                                                      |
-| `GET /api/companies/me/offers` | Offres de l'entreprise connectée, tous statuts, avec le nombre réel de candidatures (rôle entreprise) |
+| Route                           | Description                                                                                           |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET /api/health`               | État de l'API et de la connexion à la base                                                            |
+| `GET /api/cities`               | Villes (ordre alphabétique)                                                                           |
+| `GET /api/domains`              | Domaines professionnels (ordre alphabétique)                                                          |
+| `GET /api/offers`               | Offres publiques, filtrables par `city`, `domain`, `type` (`JOB` / `INTERNSHIP`) et `q` (recherche)   |
+| `POST /api/auth/register`       | Inscription d'un candidat ou d'une entreprise (jamais d'administrateur)                               |
+| `POST /api/auth/login`          | Connexion (5 tentatives par minute et par adresse IP)                                                 |
+| `POST /api/auth/refresh`        | Renouvelle la session à partir du cookie                                                              |
+| `POST /api/auth/logout`         | Déconnexion : révoque la session                                                                      |
+| `GET /api/auth/me`              | Utilisateur connecté (jeton d'accès obligatoire)                                                      |
+| `GET /api/companies/me/offers`  | Offres de l'entreprise connectée, tous statuts, avec le nombre réel de candidatures (rôle entreprise) |
+| `POST /api/companies/me/offers` | Crée une offre : brouillon, ou publication directe si l'entreprise est validée (rôle entreprise)      |
 
 Une offre n'est publique que si elle est publiée, que sa date limite n'est pas dépassée (le
 jour même reste valable) et que son entreprise est validée.

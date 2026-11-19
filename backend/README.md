@@ -113,6 +113,7 @@ Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics so
 | Route | Accès | Réponse |
 | --- | --- | --- |
 | `GET /api/companies/me/offers` | rôle `COMPANY` | `{ data: [offre…], meta: { total, today, company: { name, status } } }` |
+| `POST /api/companies/me/offers` | rôle `COMPANY` | 201 + l'offre créée (même forme qu'un élément de `data`) |
 
 - Renvoie **toutes** les offres de l'entreprise connectée (brouillons, publiées, clôturées,
   expirées), les plus récentes d'abord, avec le **nombre réel de candidatures**
@@ -124,6 +125,28 @@ Un paramètre inconnu ou mal formé renvoie **400**. Seuls les champs publics so
   **403**. Les entreprises `PENDING` et `REJECTED` peuvent consulter leurs offres (lecture seule).
 - Seuls les champs listés dans `companyOfferSelect` (`src/company-offers/company-offer.ts`)
   sont lus : aucune donnée de compte, de contact ni de candidat.
+
+**Création** (`POST`, corps validé par `CreateCompanyOfferDto`) :
+
+| Champ | Règle |
+| --- | --- |
+| `status` | `DRAFT` (brouillon) ou `PUBLISHED` (publication directe) |
+| `title` | 3 à 120 caractères, espaces superflus retirés |
+| `type`, `cityId`, `domainId` | obligatoires ; la ville et le domaine doivent exister (`GET /api/cities`, `/api/domains`) |
+| `description` | 5 000 caractères max ; **pour publier** : au moins 50 |
+| `deadline` | `AAAA-MM-JJ` (date réelle) ; **pour publier** : obligatoire, aujourd'hui (Conakry) ou plus tard |
+| `skills` | 10 max, 40 caractères chacune, doublons retirés |
+| `contractType`, `workSchedule`, `duration` | facultatifs ; emploi : `CDI`/`CDD`/`OTHER`, stage : `INTERNSHIP`/`OTHER` ; pas de durée pour un CDI |
+
+- **Statut de l'entreprise** : `APPROVED` brouillon ou publication ; `PENDING` brouillon seulement
+  (publication : 403) ; `REJECTED` aucune création (403). Ce contrôle passe avant la validation
+  des données.
+- `companyId`, `featured`, `publishedAt`, `closedAt`, `id` sont **refusés** (400) : l'entreprise
+  vient de la session, la mise en avant de l'administration, les dates du serveur.
+- Toutes les erreurs de données sont renvoyées ensemble (`message: [...]`, 400) ; rien n'est créé.
+- La création se fait dans une transaction qui **verrouille la ligne de l'entreprise**
+  (`SELECT … FOR SHARE`) : un refus par l'administration au même moment ne peut pas laisser
+  passer une publication.
 
 ## Tests et vérifications
 

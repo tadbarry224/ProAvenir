@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AdminCompaniesModule } from './admin-companies/admin-companies.module.js';
+import { ApplicationsModule } from './applications/applications.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CompanyOffersModule } from './company-offers/company-offers.module.js';
 import { validateEnv } from './config/env.validation.js';
@@ -20,6 +21,7 @@ import { ReferenceModule } from './reference/reference.module.js';
     OffersModule,
     CompanyOffersModule,
     AdminCompaniesModule,
+    ApplicationsModule,
   ],
 })
 export class AppModule {}

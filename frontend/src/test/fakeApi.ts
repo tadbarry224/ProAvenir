@@ -25,6 +25,68 @@ import companyOffersResponse from "./fixtures/api-company-offers.json";
 // (jamais capturées depuis la base de développement, qui contient de vrais comptes).
 import adminCompaniesResponse from "./fixtures/api-admin-companies.json";
 import type { AdminCompanyApi } from "../services/adminCompaniesService";
+import type {
+  CandidateApplicationApi,
+  ReceivedApplicationApi,
+} from "../services/applicationsService";
+import { NEXT_APPLICATION_STATUSES, type ApplicationStatus } from "../types/application";
+
+/** Candidature « en base » du faux serveur. */
+export type FakeApplication = {
+  id: string;
+  offerId: string;
+  candidateEmail: string;
+  status: ApplicationStatus;
+  message: string | null;
+  createdAt: string;
+  updatedAt: string;
+  cvFileName: string | null;
+};
+
+/**
+ * Profils candidats et candidatures de départ, recopiés de backend/prisma/seed-data.ts
+ * (jamais de la base de développement, qui contient de vrais comptes).
+ */
+const FAKE_CANDIDATE_PROFILES: Record<string, ReceivedApplicationApi["candidate"]> = {
+  "mariama.diallo@proavenir.test": {
+    fullName: "Mariama Diallo",
+    email: "mariama.diallo@proavenir.test",
+    city: { id: "conakry", name: "Conakry" },
+    education: "Licence en Communication — Université de Sonfonia",
+    skills: ["Communication", "Réseaux sociaux", "Canva", "Excel"],
+  },
+  "abdoulaye.bah@proavenir.test": {
+    fullName: "Abdoulaye Bah",
+    email: "abdoulaye.bah@proavenir.test",
+    city: null,
+    education: null,
+    skills: [],
+  },
+};
+
+const seedApplication = (
+  n: number,
+  offer: number,
+  candidateEmail: string,
+  status: ApplicationStatus,
+  createdAt: string,
+): FakeApplication => ({
+  id: `40000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+  offerId: `30000000-0000-4000-8000-${String(offer).padStart(12, "0")}`,
+  candidateEmail,
+  status,
+  message: null,
+  createdAt,
+  updatedAt: createdAt,
+  cvFileName: candidateEmail.startsWith("mariama") ? "CV_Mariama_Diallo.pdf" : null,
+});
+
+const SEED_APPLICATIONS: FakeApplication[] = [
+  seedApplication(1, 1, "mariama.diallo@proavenir.test", "IN_REVIEW", "2026-12-12T12:00:00.000Z"),
+  seedApplication(2, 2, "mariama.diallo@proavenir.test", "SHORTLISTED", "2026-12-08T12:00:00.000Z"),
+  seedApplication(3, 3, "mariama.diallo@proavenir.test", "SENT", "2026-12-01T12:00:00.000Z"),
+  seedApplication(4, 1, "abdoulaye.bah@proavenir.test", "SENT", "2026-12-11T12:00:00.000Z"),
+];
 import type { PublicOffer } from "../services/offersService";
 import type { CompanyOfferApi, CompanyStatus } from "../services/companyOffersService";
 import type { SessionUser } from "../services/authService";
@@ -89,7 +151,9 @@ export type FakeApi = {
   companyOffers: (companyId: string) => CompanyOfferApi[];
   /** Entreprises « en base » vues par l'administration (après les décisions). */
   adminCompanies: () => AdminCompanyApi[];
-  /** Décision de l.administration sur l.entreprise de démonstration, pendant la session. */
+  /** Candidatures « en base » (après les dépôts et les changements de statut). */
+  applications: () => FakeApplication[];
+  /** Décision de l’administration sur l’entreprise de démonstration, pendant la session. */
   setCompanyStatus: (status: CompanyStatus) => void;
   /** Fait échouer la prochaine requête (méthode + début du chemin). */
   failNext: (method: string, path: string, failure: FakeFailure) => void;
@@ -216,6 +280,153 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
   let offerCount = 0;
   /** Entreprises « en base » pour l'administration (départ : seed). */
   const adminCompanies = structuredClone(adminCompaniesResponse.data) as AdminCompanyApi[];
+  /** Candidatures « en base » (départ : seed). */
+  const applications: FakeApplication[] = structuredClone(SEED_APPLICATIONS);
+  let applicationCount = 0;
+
+  /** Offre connue du faux serveur : liste publique, ou offre gérée par une entreprise. */
+  const offerInfo = (offerId: string) => {
+    const publicOffer = publicOffers().find((offer) => offer.id === offerId);
+    if (publicOffer) return { offer: publicOffer, visible: true };
+    for (const [companyId, list] of offersByCompany) {
+      const managed = list.find((offer) => offer.id === offerId);
+      if (managed) {
+        const company = companyById(companyId);
+        return {
+          offer: { ...managed, company: { name: company?.name ?? "", logoColor: "blue" } },
+          visible: false,
+        };
+      }
+    }
+    throw new Error(`Offre inconnue du faux serveur : ${offerId}`);
+  };
+  const toCandidateView = (application: FakeApplication): CandidateApplicationApi => {
+    const { offer, visible } = offerInfo(application.offerId);
+    return {
+      id: application.id,
+      status: application.status,
+      message: application.message,
+      createdAt: application.createdAt,
+      updatedAt: application.updatedAt,
+      offer: {
+        id: offer.id,
+        title: offer.title,
+        type: offer.type,
+        city: offer.city,
+        company: offer.company,
+        publiclyVisible: visible,
+      },
+    };
+  };
+  const toReceivedView = (application: FakeApplication): ReceivedApplicationApi => {
+    const { offer } = offerInfo(application.offerId);
+    return {
+      id: application.id,
+      status: application.status,
+      message: application.message,
+      createdAt: application.createdAt,
+      updatedAt: application.updatedAt,
+      cvFileName: application.cvFileName,
+      offer: { id: offer.id, title: offer.title },
+      candidate: FAKE_CANDIDATE_PROFILES[application.candidateEmail] ?? {
+        fullName: application.candidateEmail,
+        email: application.candidateEmail,
+        city: null,
+        education: null,
+        skills: [],
+      },
+    };
+  };
+  const newest = (a: FakeApplication, b: FakeApplication) =>
+    b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id);
+
+  /** Routes de candidature, avec les mêmes contrôles que le backend. */
+  const applicationsRoute = (
+    path: string,
+    method: string,
+    body: Record<string, unknown>,
+    authorization: string | undefined,
+  ) => {
+    const user = authorization?.startsWith("Bearer ")
+      ? tokens.get(authorization.slice("Bearer ".length))
+      : undefined;
+    if (!user) return apiError(401, undefined, "Connexion requise.");
+
+    if (path === "/candidates/me/applications") {
+      if (user.role !== "CANDIDATE") return apiError(403, undefined, "Accès réservé.");
+      const mine = applications.filter((a) => a.candidateEmail === user.email);
+      if (method === "GET") {
+        const data = [...mine].sort(newest).map(toCandidateView);
+        return json({ data, meta: { total: data.length } });
+      }
+      const offerId = String(body.offerId ?? "");
+      if (!UUID.test(offerId)) {
+        return apiError(400, "VALIDATION_FAILED", ["Choisissez une offre valide."]);
+      }
+      if (!publicOffers().some((offer) => offer.id === offerId)) {
+        return apiError(
+          404,
+          "OFFER_NOT_AVAILABLE",
+          "Cette offre n’est plus disponible (clôturée, expirée ou retirée).",
+        );
+      }
+      if (mine.some((a) => a.offerId === offerId)) {
+        return apiError(409, "ALREADY_APPLIED", "Vous avez déjà postulé à cette offre.");
+      }
+      const now = new Date().toISOString();
+      const message = typeof body.message === "string" ? body.message.trim() : "";
+      const application: FakeApplication = {
+        id: `50000000-0000-4000-8000-${String(++applicationCount).padStart(12, "0")}`,
+        offerId,
+        candidateEmail: user.email,
+        status: "SENT",
+        message: message || null,
+        createdAt: now,
+        updatedAt: now,
+        cvFileName: null,
+      };
+      applications.push(application);
+      return json(toCandidateView(application), 201);
+    }
+
+    // /companies/me/applications et /companies/me/applications/:id/status
+    if (user.role !== "COMPANY") return apiError(403, undefined, "Accès réservé.");
+    const company = user.company;
+    if (!company) {
+      return apiError(403, "NO_COMPANY", "Aucune entreprise n’est associée à ce compte.");
+    }
+    const ownOfferIds = new Set((offersByCompany.get(company.id) ?? []).map((offer) => offer.id));
+    const received = applications.filter((a) => ownOfferIds.has(a.offerId));
+    if (path === "/companies/me/applications" && method === "GET") {
+      const data = [...received].sort(newest).map(toReceivedView);
+      return json({ data, meta: { total: data.length } });
+    }
+    const match = /^\/companies\/me\/applications\/([^/]+)\/status$/.exec(path);
+    if (!match || method !== "PATCH") return apiError(404, undefined, "Not Found");
+    if (!UUID.test(match[1])) {
+      return apiError(400, "INVALID_APPLICATION_ID", "Identifiant de candidature invalide.");
+    }
+    if (company.status === "REJECTED") {
+      return apiError(
+        403,
+        "COMPANY_REJECTED",
+        "Votre entreprise a été refusée par l’administration : le suivi des candidatures est en lecture seule.",
+      );
+    }
+    const application = received.find((a) => a.id === match[1]);
+    if (!application) return apiError(404, "APPLICATION_NOT_FOUND", "Candidature introuvable.");
+    const target = body.status as ApplicationStatus;
+    if (!NEXT_APPLICATION_STATUSES[application.status].includes(target)) {
+      return apiError(
+        409,
+        "INVALID_APPLICATION_TRANSITION",
+        "Ce changement de statut n’est pas possible.",
+      );
+    }
+    application.status = target;
+    application.updatedAt = new Date().toISOString();
+    return json(toReceivedView(application));
+  };
 
   /** Routes /admin/companies, avec les mêmes contrôles que le backend. */
   const adminRoute = (
@@ -525,6 +736,12 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
       if (path.startsWith("/companies/me/offers")) {
         return companyRoute(path, method, body, headers.Authorization);
       }
+      if (
+        path.startsWith("/candidates/me/applications") ||
+        path.startsWith("/companies/me/applications")
+      ) {
+        return applicationsRoute(path, method, body, headers.Authorization);
+      }
       if (path.startsWith("/admin/companies")) {
         return adminRoute(path, method, body, headers.Authorization);
       }
@@ -597,6 +814,7 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     },
     companyOffers: (companyId) => offersByCompany.get(companyId) ?? [],
     adminCompanies: () => adminCompanies,
+    applications: () => applications,
     setCompanyStatus: (status) => {
       accounts.COMPANY.company!.status = status;
     },

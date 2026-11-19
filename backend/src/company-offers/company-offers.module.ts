@@ -8,5 +8,7 @@ import { CompanyOffersService } from './company-offers.service.js';
 @Module({
   controllers: [CompanyOffersController],
   providers: [CompanyOffersService, CompanyMembershipService, ClockService],
+  // Utilisé aussi par les candidatures (candidatures reçues par l'entreprise).
+  exports: [CompanyMembershipService],
 })
 export class CompanyOffersModule {}

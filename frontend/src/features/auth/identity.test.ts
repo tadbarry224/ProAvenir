@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { SessionUser } from "../../services/authService";
-import { identityOf, initialsOfName, ownsDemoData } from "./identity";
+import { identityOf, initialsOfName } from "./identity";
 
 const candidate: SessionUser = {
   id: "u1",
@@ -42,16 +42,5 @@ describe("identité des espaces", () => {
     assert.equal(identity.name, "Soumba Services");
     assert.equal(identity.initials, "SS");
     assert.equal(identity.statusLabel, "En attente de validation");
-  });
-
-  it("réserve les données fictives aux comptes de démonstration", () => {
-    assert.equal(ownsDemoData(candidate), false);
-    assert.equal(ownsDemoData(null), false);
-    assert.equal(ownsDemoData({ ...candidate, email: "mariama.diallo@proavenir.test" }), true);
-    // Même e-mail mais autre rôle : non.
-    assert.equal(
-      ownsDemoData({ ...candidate, email: "mariama.diallo@proavenir.test", role: "ADMIN" }),
-      false,
-    );
   });
 });

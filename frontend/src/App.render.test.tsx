@@ -11,7 +11,7 @@
  */
 import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { formatHtml, goTo, openTab, renderApp, setupAppTest } from "./test/appTestUtils";
+import { formatHtml, goTo, openTab, renderApp, settle, setupAppTest } from "./test/appTestUtils";
 
 /** Compare le rendu actuel au snapshot enregistré pour cet écran. */
 async function expectScreen(container: HTMLElement, name: string) {
@@ -43,10 +43,12 @@ describe("Rendu des pages publiques", () => {
   });
 
   it("fenêtre de candidature", async () => {
-    // Seul un compte candidat peut ouvrir la fenêtre de candidature.
+    // Seul un compte candidat peut ouvrir la fenêtre de candidature. « Stagiaire
+    // comptable » : la candidate de démonstration n'y a pas encore postulé.
     const { container } = await renderApp({ as: "CANDIDATE" });
     await goTo("Offres");
-    fireEvent.click(screen.getByText("Développeur·se web junior"));
+    fireEvent.click(screen.getByText("Stagiaire comptable"));
+    await settle();
     fireEvent.click(screen.getByRole("button", { name: "Postuler maintenant" }));
     await expectScreen(container, "offre-candidature");
   });

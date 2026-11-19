@@ -190,7 +190,6 @@
 <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
 <h2 class="font-bold text-[#0c2340]">Candidatures reçues</h2>
 </div>
-<p class="px-5 pt-4 text-xs text-slate-400">Démonstration : ces candidatures sont fictives. Le suivi réel des candidatures arrive prochainement.</p>
 <div class="overflow-x-auto">
 <table class="data-table">
 <thead>
@@ -206,16 +205,21 @@
 <td>
 <span class="flex items-center gap-3">
 <span class="grid size-8 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">MD</span>
+<span>
 <b>Mariama Diallo</b>
+<small>
+<a href="mailto:mariama.diallo@proavenir.test" class="hover:underline">mariama.diallo@proavenir.test</a>
+</small>
+</span>
 </span>
 </td>
 <td>Assistant·e marketing digital</td>
 <td>12 déc. 2026</td>
 <td>
-<select class="status border-0 outline-none bg-amber-50 text-amber-700">
-<option>En examen</option>
-<option>Présélectionnée</option>
-<option>Refusée</option>
+<select aria-label="Statut de la candidature de Mariama Diallo" class="status border-0 outline-none bg-amber-50 text-amber-700">
+<option value="IN_REVIEW">En examen</option>
+<option value="SHORTLISTED">Présélectionnée</option>
+<option value="REJECTED">Refusée</option>
 </select>
 </td>
 </tr>
@@ -223,32 +227,21 @@
 <td>
 <span class="flex items-center gap-3">
 <span class="grid size-8 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">AB</span>
+<span>
 <b>Abdoulaye Bah</b>
+<small>
+<a href="mailto:abdoulaye.bah@proavenir.test" class="hover:underline">abdoulaye.bah@proavenir.test</a>
+</small>
+</span>
 </span>
 </td>
 <td>Assistant·e marketing digital</td>
 <td>11 déc. 2026</td>
 <td>
-<select class="status border-0 outline-none bg-blue-50 text-blue-700">
-<option>Envoyée</option>
-<option>En examen</option>
-</select>
-</td>
-</tr>
-<tr>
-<td>
-<span class="flex items-center gap-3">
-<span class="grid size-8 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">FC</span>
-<b>Fatoumata Camara</b>
-</span>
-</td>
-<td>Commercial·e terrain</td>
-<td>09 déc. 2026</td>
-<td>
-<select class="status border-0 outline-none bg-emerald-50 text-emerald-700">
-<option>Présélectionnée</option>
-<option>Retenue</option>
-<option>Refusée</option>
+<select aria-label="Statut de la candidature de Abdoulaye Bah" class="status border-0 outline-none bg-blue-50 text-blue-700">
+<option value="SENT">Envoyée</option>
+<option value="IN_REVIEW">En examen</option>
+<option value="REJECTED">Refusée</option>
 </select>
 </td>
 </tr>

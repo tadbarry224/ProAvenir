@@ -174,6 +174,32 @@ clôturée, expirée ou d'une entreprise non validée donne la **même** répons
   (`FOR UPDATE`). Deux demandes simultanées sur la même offre passent l'une après l'autre : la
   seconde voit le résultat de la première (ex. double clôture : 200 puis 409).
 
+## Candidatures (B5)
+
+| Route | Accès | Réponse |
+| --- | --- | --- |
+| `GET /api/candidates/me/applications` | rôle `CANDIDATE` | `{ data: [candidature…], meta: { total } }`, les plus récentes d'abord |
+| `POST /api/candidates/me/applications` | rôle `CANDIDATE` | `{ offerId, message? }` → 201 + la candidature |
+| `GET /api/companies/me/applications` | rôle `COMPANY` | `{ data: [candidature reçue…], meta: { total } }` |
+| `PATCH /api/companies/me/applications/:id/status` | rôle `COMPANY` | `{ status }` → 200 + la candidature à jour |
+
+- Le candidat et l'entreprise sont **déduits de la session** (`CandidateProfile`, `CompanyMember`) :
+  aucun identifiant de compte n'est accepté dans la requête (champ inconnu → **400**).
+- **Postuler** : uniquement à une offre **publique** (publiée, non expirée, entreprise validée),
+  sinon **404** `OFFER_NOT_AVAILABLE` ; une seule fois par offre, sinon **409** `ALREADY_APPLIED`
+  (deux envois simultanés : la contrainte unique tranche). Message facultatif, 1 000 caractères au
+  plus. Le CV actuel du profil est recopié dans la candidature. L'offre et son entreprise sont
+  verrouillées (`FOR SHARE`) pendant le dépôt. Compte sans profil candidat : **403**
+  `NO_CANDIDATE_PROFILE`.
+- **Candidat** : voit l'offre (titre, type, ville, entreprise) et `publiclyVisible` (offre encore en
+  ligne). **Entreprise** : voit le candidat qui lui a écrit (nom, e-mail, ville, formation,
+  compétences), son message et le nom du CV ; jamais de mot de passe ni d'autres candidatures.
+- **Statuts** : `SENT` → `IN_REVIEW` → `SHORTLISTED` → `ACCEPTED`, et `REJECTED` depuis toute étape non
+  finale ; `ACCEPTED` et `REJECTED` sont définitifs. Autre changement : **409**
+  `INVALID_APPLICATION_TRANSITION`. Candidature d'une autre entreprise : **404**
+  `APPLICATION_NOT_FOUND`. Entreprise refusée : lecture seule (**403** `COMPANY_REJECTED`).
+  Identifiant mal formé : **400** `INVALID_APPLICATION_ID`.
+
 ## Administration : vérification des entreprises
 
 | Route | Accès | Réponse |
@@ -277,6 +303,7 @@ backend/
 │   ├── reference/         GET /api/cities, GET /api/domains
 │   ├── offers/            GET /api/offers et /api/offers/:id (filtres validés par ListOffersQueryDto)
 │   ├── company-offers/    GET /api/companies/me/offers (offres de l'entreprise connectée)
-│   └── admin-companies/   GET|PATCH /api/admin/companies (vérification des entreprises)
+│   ├── admin-companies/   GET|PATCH /api/admin/companies (vérification des entreprises)
+│   └── applications/      candidatures : /api/candidates/me/… et /api/companies/me/applications
 └── test/                  tests de bout en bout
 ```

@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { Building2, FileCheck2, UsersRound } from "lucide-react";
+import { Building2, CheckCircle2, XCircle } from "lucide-react";
 import type { Page } from "../../types/navigation";
 import type { DashboardIdentity } from "../../types/auth";
-import type { ModeratedOffer } from "../../types/admin";
 import type { AdminCompaniesState } from "../../features/admin/useAdminCompanies";
-import { initialModeratedOffers } from "../../data/mockAdmin";
 import { StatCard } from "../../components/ui/StatCard";
 import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { DashboardTop } from "../../components/layout/DashboardTop";
@@ -22,10 +20,11 @@ export function AdminDashboard({
   companies: AdminCompaniesState;
 }) {
   const [active, setActive] = useState("Vue générale");
-  // Modération des offres : encore une démonstration (pas de signalements en base).
-  const [offers, setOffers] = useState<ModeratedOffer[]>(initialModeratedOffers);
-  const moderate = (title: string, status: string) =>
-    setOffers((x) => x.map((o) => (o.title === title ? { ...o, status } : o)));
+  /** Nombre d’entreprises ayant ce statut (« – » tant que la liste n’est pas chargée). */
+  const count = (status: "PENDING" | "APPROVED" | "REJECTED") =>
+    companies.status === "success"
+      ? String(companies.companies.filter((c) => c.status === status).length)
+      : "–";
   return (
     <DashboardLayout area="admin" identity={identity} go={go} active={active} setActive={setActive}>
       <DashboardTop
@@ -39,26 +38,31 @@ export function AdminDashboard({
             <div className="stats-grid">
               <StatCard
                 icon={Building2}
-                value={companies.status === "success" ? String(companies.pendingCount) : "–"}
+                value={count("PENDING")}
                 label="Entreprises à vérifier"
                 tone="amber"
               />
               <StatCard
-                icon={FileCheck2}
-                value={String(offers.filter((o) => o.status === "À examiner").length)}
-                label="Offres à modérer"
+                icon={CheckCircle2}
+                value={count("APPROVED")}
+                label="Entreprises validées"
+                tone="green"
+              />
+              <StatCard
+                icon={XCircle}
+                value={count("REJECTED")}
+                label="Entreprises refusées"
                 tone="blue"
               />
-              <StatCard icon={UsersRound} value="128" label="Utilisateurs actifs" tone="green" />
             </div>
             <div className="mt-6 grid gap-6 xl:grid-cols-2">
               <AdminCompanies state={companies} compact />
-              <AdminOffers offers={offers} moderate={moderate} compact />
+              <AdminOffers />
             </div>
           </>
         )}
         {active === "Entreprises" && <AdminCompanies state={companies} />}
-        {active === "Modération" && <AdminOffers offers={offers} moderate={moderate} />}
+        {active === "Modération" && <AdminOffers />}
       </div>
     </DashboardLayout>
   );

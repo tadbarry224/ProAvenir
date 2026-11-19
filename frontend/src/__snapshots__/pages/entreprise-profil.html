@@ -190,21 +190,22 @@
 <div class="grid gap-5 sm:grid-cols-2">
 <label class="form-label sm:col-span-2">Nom de l’entreprise<input required="" value="Kamsar Solutions">
 </label>
-<label class="form-label">Secteur<select required="">
-<option selected="">Services professionnels</option>
-<option>Technologie</option>
-</select>
+<label class="form-label">Secteur<input placeholder="Ex. Services professionnels">
 </label>
-<label class="form-label">Ville<select required="">
-<option selected="">Conakry</option>
+<label class="form-label">Ville<select>
+<option value="" selected="">Choisir une ville</option>
+<option>Conakry</option>
 <option>Kindia</option>
+<option>Labé</option>
+<option>Boké</option>
 </select>
 </label>
-<label class="form-label sm:col-span-2">Description<textarea required="" rows="5">Cabinet guinéen spécialisé dans l’accompagnement des organisations et le développement de projets.</textarea>
+<label class="form-label sm:col-span-2">Description<textarea rows="5" placeholder="Présentez votre entreprise et ses activités.">
+</textarea>
 </label>
-<label class="form-label">E-mail de contact<input required="" type="email" value="recrutement@exemple.gn">
+<label class="form-label">E-mail de contact<input placeholder="recrutement@votre-entreprise.gn" type="email">
 </label>
-<label class="form-label">Téléphone<input value="+224 600 00 00 00">
+<label class="form-label">Téléphone<input placeholder="+224 …">
 </label>
 </div>
 <button type="submit" class="btn-primary mt-6">Enregistrer</button>

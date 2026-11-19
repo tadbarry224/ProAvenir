@@ -10,15 +10,18 @@ import {
 } from "react-router";
 import type { Job } from "./types/offer";
 import { jobPath, PAGE_PATHS, pageFromPath, type Page } from "./types/navigation";
-import type { RecruitApplication } from "./types/application";
 import { PROTECTED_PAGES, ROLE_HOME, type UserRole } from "./types/auth";
 import { AuthProvider } from "./features/auth/AuthProvider";
 import { useAuth } from "./features/auth/authContext";
-import { identityOf, ownsDemoData } from "./features/auth/identity";
+import { identityOf } from "./features/auth/identity";
 import { useOffers } from "./features/offers/useOffers";
 import { useAdminCompanies } from "./features/admin/useAdminCompanies";
 import { usePublicOffers } from "./features/offers/usePublicOffers";
-import { DEMO_CANDIDATE_APPLICATION_ID, initialRecruitApplications } from "./data/mockApplications";
+import {
+  useCandidateApplications,
+  useReceivedApplications,
+  type CandidateApplicationsState,
+} from "./features/applications/useApplications";
 import { SESSION_EXPIRED_MESSAGE } from "./services/apiClient";
 import { Header } from "./components/layout/Header";
 import { Home } from "./pages/Home";
@@ -68,14 +71,6 @@ function ProAvenirApp() {
   const [search, setSearch] = useState("");
   const [searchCity, setSearchCity] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [appliedIds, setAppliedIds] = useState<string[]>([]);
-  const [recruitApplications, setRecruitApplications] = useState<RecruitApplication[]>(
-    initialRecruitApplications,
-  );
-  const updateApplicationStatus = (id: string, status: string) =>
-    setRecruitApplications((items) =>
-      items.map((item) => (item.id === id ? { ...item, status } : item)),
-    );
 
   // Le menu mobile se referme à chaque changement de page (y compris avec « Retour »).
   useEffect(() => setMobileOpen(false), [location.pathname]);
@@ -143,10 +138,25 @@ function ProAvenirApp() {
     onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
   });
 
-  // Identité affichée : toujours la personne connectée. Les CANDIDATURES fictives
-  // ne sont montrées qu'aux comptes de démonstration (vraies données en B5).
+  // Candidatures RÉELLES (API). Celles du candidat sont chargées dès qu'il est connecté :
+  // la page d'une offre sait ainsi s'il y a déjà postulé.
+  const isRole = (role: UserRole) => auth.status === "authenticated" && auth.user?.role === role;
+  const candidateApplications = useCandidateApplications({
+    session: auth,
+    userId: auth.user?.id ?? null,
+    enabled: isRole("CANDIDATE"),
+    onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
+  });
+  // Candidatures reçues par l'entreprise : chargées à l'ouverture de son espace.
+  const receivedApplications = useReceivedApplications({
+    session: auth,
+    userId: auth.user?.id ?? null,
+    enabled: page === "company" && allowed,
+    onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
+  });
+
+  // Identité affichée : toujours la personne connectée.
   const identity = auth.user ? identityOf(auth.user) : null;
-  const showDemoData = ownsDemoData(auth.user);
 
   const jobsPage = (
     <JobsPage
@@ -190,8 +200,7 @@ function ProAvenirApp() {
               // Seul un compte candidat peut postuler (null = visiteur non connecté).
               viewerRole={auth.status === "authenticated" ? (auth.user?.role ?? null) : null}
               onLogin={loginAndReturn}
-              appliedIds={appliedIds}
-              onApply={(id) => setAppliedIds((ids) => (ids.includes(id) ? ids : [...ids, id]))}
+              applications={candidateApplications}
             />
           }
         />
@@ -219,11 +228,7 @@ function ProAvenirApp() {
                 jobs={publicJobs}
                 go={go}
                 identity={identity}
-                showDemoData={showDemoData}
-                applicationStatus={
-                  recruitApplications.find((item) => item.id === DEMO_CANDIDATE_APPLICATION_ID)
-                    ?.status ?? "Envoyée"
-                }
+                applications={candidateApplications}
               />
             )
           }
@@ -242,8 +247,7 @@ function ProAvenirApp() {
                 }}
                 identity={identity}
                 companyOffers={companyOffers}
-                applications={showDemoData ? recruitApplications : []}
-                updateStatus={updateApplicationStatus}
+                applications={receivedApplications}
               />
             )
           }
@@ -264,12 +268,11 @@ function ProAvenirApp() {
 
 /** Page /offres/:id : lit l'identifiant dans l'adresse. */
 function JobRoute({
-  appliedIds,
-  onApply,
+  applications,
   ...props
-}: Omit<Parameters<typeof JobDetailsPage>[0], "id" | "applied" | "onApply"> & {
-  appliedIds: string[];
-  onApply: (id: string) => void;
+}: Omit<Parameters<typeof JobDetailsPage>[0], "id" | "applied" | "onApply" | "applying"> & {
+  /** Candidatures du candidat connecté (API) : déjà postulé ? postuler. */
+  applications: CandidateApplicationsState;
 }) {
   const { id = "" } = useParams();
   return (
@@ -277,8 +280,9 @@ function JobRoute({
       // `key` : changer d'offre repart d'un état neuf (fenêtre de candidature fermée…).
       key={id}
       id={id}
-      applied={appliedIds.includes(id)}
-      onApply={() => onApply(id)}
+      applied={applications.hasApplied(id)}
+      applying={applications.pending === id}
+      onApply={async (message) => (await applications.apply(id, message))?.message ?? null}
       {...props}
     />
   );

@@ -4,7 +4,6 @@
  */
 import type { SessionUser } from "../../services/authService";
 import type { DashboardIdentity } from "../../types/auth";
-import { DEMO_ACCOUNTS } from "./demoAccounts";
 
 /** Libellé du statut d.une entreprise (barre latérale, en-tête de l.espace). */
 export const COMPANY_STATUS_LABELS = {
@@ -37,17 +36,4 @@ export function identityOf(user: SessionUser): DashboardIdentity {
     firstName,
     statusLabel: user.role === "ADMIN" ? "Accès sécurisé" : "Compte vérifié",
   };
-}
-
-/**
- * Le contenu des espaces (candidatures, offres de l'entreprise) est encore
- * FICTIF jusqu'aux étapes B4–B5 et appartient aux comptes de démonstration.
- * Il n'est donc montré qu'à ces comptes, et seulement en développement ;
- * un nouveau compte (ou tout compte en production) voit un espace vide.
- */
-export function ownsDemoData(user: SessionUser | null): boolean {
-  return (
-    import.meta.env.DEV &&
-    DEMO_ACCOUNTS.some((account) => account.email === user?.email && account.role === user.role)
-  );
 }

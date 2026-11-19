@@ -22,11 +22,3 @@ export type AdminCompanyView = {
   statusLabel: string; // « En attente », « Approuvée » ou « Refusée »
   rejectionReason: string | null;
 };
-
-/** Offre signalée, à modérer par un administrateur (démonstration). */
-export type ModeratedOffer = {
-  title: string;
-  company: string;
-  reason: string;
-  status: string; // « À examiner », « Suspendue » ou « Maintenue »
-};

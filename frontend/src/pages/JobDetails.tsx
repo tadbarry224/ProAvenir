@@ -13,11 +13,8 @@ import {
 import type { Job } from "../types/offer";
 import type { Page } from "../types/navigation";
 import type { UserRole } from "../types/auth";
+import { APPLICATION_MESSAGE_MAX } from "../services/applicationsService";
 import { JobLogo } from "../components/jobs/JobLogo";
-
-/** La candidature n'est pas encore enregistrée par l'API (étape B5). */
-const APPLY_DEMO_NOTICE =
-  "Démonstration : la candidature n'est pas encore enregistrée. L'envoi réel arrive prochainement.";
 
 export function JobDetails({
   job,
@@ -26,6 +23,7 @@ export function JobDetails({
   onLogin,
   applied,
   onApply,
+  applying,
 }: {
   job: Job;
   go: (page: Page) => void;
@@ -33,14 +31,25 @@ export function JobDetails({
   viewerRole: UserRole | null;
   /** Visiteur : ouvre la connexion, puis revient sur cette offre. */
   onLogin: () => void;
+  /** Le candidat a déjà postulé à cette offre (liste du serveur). */
   applied: boolean;
-  onApply: () => void;
+  /** Envoie la candidature : null si elle est enregistrée, sinon le message d'erreur. */
+  onApply: (message: string) => Promise<string | null>;
+  /** Envoi en cours (bouton désactivé). */
+  applying?: boolean;
 }) {
   const [modal, setModal] = useState(false);
-  const apply = (e: FormEvent) => {
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const apply = async (e: FormEvent) => {
     e.preventDefault();
-    onApply();
-    setModal(false);
+    setError("");
+    const failure = await onApply(message);
+    if (failure) setError(failure);
+    else {
+      setModal(false);
+      setMessage("");
+    }
   };
   return (
     <main className="min-h-screen bg-[#f6f8fb] pb-16">
@@ -138,7 +147,7 @@ export function JobDetails({
             </p>
           ) : (
             <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-              Votre CV sera visible uniquement par le recruteur concerné.
+              Votre candidature sera visible uniquement par le recruteur concerné.
             </p>
           )}
         </aside>
@@ -159,21 +168,35 @@ export function JobDetails({
               <div className="flex items-center gap-3">
                 <FileCheck2 className="text-emerald-600" />
                 <div>
-                  <p className="text-sm font-bold text-emerald-900">CV de votre profil</p>
-                  <p className="text-xs text-emerald-700">Votre CV actuel sera transmis</p>
+                  <p className="text-sm font-bold text-emerald-900">Votre profil candidat</p>
+                  <p className="text-xs text-emerald-700">
+                    Nom, formation et compétences sont transmis au recruteur.
+                  </p>
                 </div>
               </div>
             </div>
-            <p className="mt-3 text-xs text-slate-400">{APPLY_DEMO_NOTICE}</p>
             <label className="form-label mt-5">
               Message au recruteur <span>(facultatif)</span>
-              <textarea rows={4} placeholder="Présentez brièvement votre motivation..." />
+              <textarea
+                rows={4}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                maxLength={APPLICATION_MESSAGE_MAX}
+                placeholder="Présentez brièvement votre motivation..."
+              />
             </label>
             <label className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-500">
               <input required type="checkbox" className="mt-1 accent-[#15966f]" />
               Je confirme l’exactitude des informations de mon profil.
             </label>
-            <button className="btn-primary mt-6 w-full">Envoyer ma candidature</button>
+            {error && (
+              <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">
+                {error}
+              </p>
+            )}
+            <button disabled={applying} className="btn-primary mt-6 w-full disabled:opacity-60">
+              {applying ? "Envoi en cours…" : "Envoyer ma candidature"}
+            </button>
           </form>
         </div>
       )}

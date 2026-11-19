@@ -8,9 +8,10 @@ valide les entreprises.
 > lisent les vraies données de PostgreSQL via l'API. L'inscription, la connexion et l'accès aux
 > espaces candidat, entreprise et administration sont réels (sessions sécurisées). Les **offres de
 > l'espace entreprise** sont réelles (création, brouillons, publication, clôture, réouverture), tout
-> comme la **vérification des entreprises** par l'administration (approbation, refus motivé). Les
-> candidatures et la modération des offres utilisent encore des données de démonstration,
-> signalées comme telles ; elles seront branchées ensuite.
+> comme la **vérification des entreprises** par l'administration (approbation, refus motivé) et les
+> **candidatures** (un candidat postule, suit ses candidatures ; l'entreprise les traite). Le profil
+> détaillé, le dépôt de CV et la modération des offres arrivent ensuite : les écrans concernés le
+> signalent, sans aucune donnée inventée.
 
 ## Sommaire
 
@@ -88,6 +89,10 @@ La documentation détaillée se trouve dans :
 | `PATCH /api/companies/me/offers/:id/status` | Publier un brouillon, clôturer ou rouvrir une offre de son entreprise (rôle entreprise)               |
 | `GET /api/admin/companies`                  | Toutes les entreprises, en attente d'abord (rôle administrateur)                                      |
 | `PATCH /api/admin/companies/:id/status`     | Approuver ou refuser une entreprise, motif obligatoire pour un refus (rôle administrateur)             |
+| `GET /api/candidates/me/applications`       | Candidatures du candidat connecté (rôle candidat)                                                     |
+| `POST /api/candidates/me/applications`      | Postuler à une offre publique, une seule fois par offre (rôle candidat)                               |
+| `GET /api/companies/me/applications`        | Candidatures reçues sur les offres de l'entreprise (rôle entreprise)                                  |
+| `PATCH /api/companies/me/applications/:id/status` | Faire avancer une candidature : en examen, présélectionnée, retenue ou refusée (rôle entreprise) |
 
 Une offre n'est publique que si elle est publiée, que sa date limite n'est pas dépassée (le
 jour même reste valable) et que son entreprise est validée.

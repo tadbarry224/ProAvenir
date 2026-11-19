@@ -182,17 +182,20 @@
 <div class="grid gap-5 sm:grid-cols-2">
 <label class="form-label">Nom complet<input required="" value="Mariama Diallo">
 </label>
-<label class="form-label">Ville<select required="">
-<option selected="">Conakry</option>
-<option>Labé</option>
+<label class="form-label">Ville<select>
+<option value="" selected="">Choisir une ville</option>
+<option>Conakry</option>
 <option>Kindia</option>
+<option>Labé</option>
+<option>Boké</option>
 </select>
 </label>
-<label class="form-label sm:col-span-2">Formation<input required="" value="Licence en Communication — Université de Sonfonia">
+<label class="form-label sm:col-span-2">Formation<input placeholder="Ex. Licence en gestion — Université de Conakry">
 </label>
-<label class="form-label sm:col-span-2">Présentation<textarea rows="4">Jeune diplômée passionnée par la communication digitale et les projets à impact.</textarea>
+<label class="form-label sm:col-span-2">Présentation<textarea rows="4" placeholder="Présentez-vous en quelques lignes.">
+</textarea>
 </label>
-<label class="form-label sm:col-span-2">Compétences<input required="" value="Communication, Réseaux sociaux, Canva, Excel">
+<label class="form-label sm:col-span-2">Compétences<input placeholder="Ex. Excel, communication, comptabilité">
 </label>
 </div>
 <button class="btn-primary mt-6">Enregistrer les modifications</button>
@@ -200,7 +203,7 @@
 <div class="content-card h-fit p-6">
 <h2 class="font-bold text-[#0c2340]">Mon CV</h2>
 <div class="mt-5 rounded-xl border border-dashed border-slate-300 p-5 text-center">
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text mx-auto text-[#1768c4]" aria-hidden="true">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text mx-auto text-slate-400" aria-hidden="true">
 <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z">
 </path>
 <path d="M14 2v5a1 1 0 0 0 1 1h5">
@@ -212,10 +215,10 @@
 <path d="M16 17H8">
 </path>
 </svg>
-<p class="mt-3 truncate text-sm font-bold">CV_Mariama_Diallo.pdf</p>
-<p class="mt-1 text-xs text-slate-400">Mis à jour le 10 déc. 2026</p>
+<p class="mt-3 text-sm font-bold">Aucun CV déposé</p>
+<p class="mt-1 text-xs text-slate-400">Le dépôt de CV arrive prochainement.</p>
 </div>
-<label class="btn-secondary mt-4 w-full cursor-pointer">
+<button type="button" disabled="" class="btn-secondary mt-4 w-full opacity-60">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload" aria-hidden="true">
 <path d="M12 3v12">
 </path>
@@ -223,8 +226,7 @@
 </path>
 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4">
 </path>
-</svg> Remplacer le CV<input accept=".pdf,application/pdf" class="hidden" type="file">
-</label>
+</svg> Déposer un CV</button>
 <p class="mt-3 text-center text-[11px] text-slate-400">PDF uniquement · 5 Mo maximum</p>
 </div>
 </div>

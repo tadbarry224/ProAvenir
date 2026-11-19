@@ -1,13 +1,20 @@
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { OFFER_CITIES } from "../../types/offer";
 
+/** L'enregistrement du profil entreprise est une prochaine étape. */
+const PROFILE_NOT_SAVED =
+  "L’enregistrement du profil arrive prochainement : vos modifications ne sont pas encore sauvegardées.";
+
+/**
+ * Profil de l'entreprise. Aucune valeur inventée : seul le nom (session) est pré-rempli.
+ */
 export function CompanyProfile({ companyName }: { companyName: string }) {
-  const [saved, setSaved] = useState(false);
+  const [notice, setNotice] = useState(false);
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        setSaved(true);
+        setNotice(true);
       }}
       className="content-card max-w-3xl p-6 sm:p-8"
     >
@@ -18,38 +25,37 @@ export function CompanyProfile({ companyName }: { companyName: string }) {
         </label>
         <label className="form-label">
           Secteur
-          <select required defaultValue="Services professionnels">
-            <option>Services professionnels</option>
-            <option>Technologie</option>
-          </select>
+          <input placeholder="Ex. Services professionnels" />
         </label>
         <label className="form-label">
           Ville
-          <select required defaultValue="Conakry">
-            <option>Conakry</option>
-            <option>Kindia</option>
+          <select defaultValue="">
+            <option value="">Choisir une ville</option>
+            {OFFER_CITIES.map((city) => (
+              <option key={city}>{city}</option>
+            ))}
           </select>
         </label>
         <label className="form-label sm:col-span-2">
           Description
-          <textarea
-            required
-            rows={5}
-            defaultValue="Cabinet guinéen spécialisé dans l’accompagnement des organisations et le développement de projets."
-          />
+          <textarea rows={5} placeholder="Présentez votre entreprise et ses activités." />
         </label>
         <label className="form-label">
           E-mail de contact
-          <input required type="email" defaultValue="recrutement@exemple.gn" />
+          <input type="email" placeholder="recrutement@votre-entreprise.gn" />
         </label>
         <label className="form-label">
           Téléphone
-          <input defaultValue="+224 600 00 00 00" />
+          <input placeholder="+224 …" />
         </label>
       </div>
+      {notice && (
+        <p role="status" className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          {PROFILE_NOT_SAVED}
+        </p>
+      )}
       <button type="submit" className="btn-primary mt-6">
-        {saved && <Check size={17} />}
-        {saved ? "Modifications enregistrées" : "Enregistrer"}
+        Enregistrer
       </button>
     </form>
   );

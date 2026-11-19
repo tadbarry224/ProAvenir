@@ -155,18 +155,71 @@ describe("Liste publique des offres", () => {
     screen.getByRole("heading", { level: 1, name: "Développeur·se web junior" });
   }
 
-  it("permet à un candidat de consulter une offre et d'y postuler", async () => {
-    await renderApp({ as: "CANDIDATE" });
-    await openJobDetails();
+  /** Ouvre « Stagiaire comptable », offre à laquelle la candidate n'a pas encore postulé. */
+  async function openAccountingJob() {
+    await goTo("Offres");
+    fireEvent.click(screen.getByText("Stagiaire comptable"));
+    await settle();
+  }
+
+  it("permet à un candidat de postuler : la candidature est enregistrée par l'API", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    await renderApp();
+    await openAccountingJob();
 
     fireEvent.click(screen.getByRole("button", { name: "Postuler maintenant" }));
-    // Aucun CV ni nom d'une autre personne : le CV est celui du profil connecté.
-    screen.getByText("CV de votre profil");
-    assert.equal(screen.queryByText(/CV_Mariama_Diallo/), null);
-    screen.getByText(/la candidature n'est pas encore enregistrée/);
+    screen.getByText("Votre profil candidat");
+    type(screen.getByLabelText(/Message au recruteur/), "  Je suis disponible dès janvier.  ");
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "Envoyer ma candidature" }));
+    await settle();
     screen.getByText("Candidature envoyée");
+
+    // Envoyée au serveur avec le jeton, sans identifiant de candidat.
+    const post = api.calls.find(
+      (call) => call.method === "POST" && call.path === "/candidates/me/applications",
+    )!;
+    assert.deepEqual(post.body, {
+      offerId: "30000000-0000-4000-8000-000000000004",
+      message: "Je suis disponible dès janvier.",
+    });
+    assert.match(post.authorization ?? "", /^Bearer /);
+    assert.equal(api.applications().at(-1)?.status, "SENT");
+
+    // Elle apparaît dans « Mes candidatures » (4 avec celles du seed).
+    await goTo("Espace candidat");
+    assert.equal(statValue("Candidatures envoyées"), "4");
+    openTab("Mes candidatures");
+    screen.getByText("Stagiaire comptable");
+  });
+
+  it("une offre déjà postulée affiche « Candidature envoyée » (même après F5)", async () => {
+    // Le seed : la candidate a déjà postulé à « Développeur·se web junior ».
+    await renderApp({ as: "CANDIDATE" });
+    await openJobDetails();
+    screen.getByText("Candidature envoyée");
+    assert.equal(screen.queryByRole("button", { name: "Postuler maintenant" }), null);
+  });
+
+  it("affiche l'erreur du serveur dans la fenêtre, sans fermer", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    await renderApp();
+    await openAccountingJob();
+    api.failNext("POST", "/candidates/me/applications", {
+      status: 404,
+      body: {
+        statusCode: 404,
+        code: "OFFER_NOT_AVAILABLE",
+        message: "Cette offre n’est plus disponible (clôturée, expirée ou retirée).",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Postuler maintenant" }));
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer ma candidature" }));
+    await settle();
+    assert.match(screen.getByRole("alert").textContent ?? "", /n’est plus disponible/);
+    screen.getByRole("button", { name: "Envoyer ma candidature" });
+    assert.equal(screen.queryByText("Candidature envoyée"), null);
   });
 
   it("affiche le vrai contenu de l'offre, sans badge ni texte fictif", async () => {
@@ -240,7 +293,8 @@ describe("Offres de l'entreprise (API réelle)", () => {
     assert.equal(statValue("Offres actives"), "1");
     // Compteur RÉEL (PostgreSQL) : 2 candidatures sur l'offre de Kamsar.
     assert.equal(statValue("Candidatures reçues"), "2");
-    assert.equal(statValue("À examiner"), "—");
+    // Candidatures reçues encore « envoyées » ou « en examen » (API).
+    assert.equal(statValue("À examiner"), "2");
 
     await myOffers();
     screen.getByText(KAMSAR_OFFER);
@@ -539,6 +593,7 @@ describe("Suivi des candidatures", () => {
   setupAppTest();
 
   it("le statut changé par l'entreprise est visible par la candidate (deux sessions)", async () => {
+    const api = installFakeApi();
     await renderApp();
     await loginWithForm("CANDIDATE");
     assert.equal(statValue("Présélections"), "1");
@@ -547,12 +602,74 @@ describe("Suivi des candidatures", () => {
 
     await loginWithForm("COMPANY");
     openTab("Candidatures");
-    type(screen.getByDisplayValue("En examen"), "Présélectionnée");
+    const select = screen.getByLabelText("Statut de la candidature de Mariama Diallo");
+    // Seules les étapes suivantes autorisées sont proposées.
+    assert.deepEqual(
+      [...(select as HTMLSelectElement).options].map((option) => option.textContent),
+      ["En examen", "Présélectionnée", "Refusée"],
+    );
+    type(select, "SHORTLISTED");
+    await settle();
+    const patch = api.calls.find((call) => call.method === "PATCH")!;
+    assert.equal(
+      patch.path,
+      "/companies/me/applications/40000000-0000-4000-8000-000000000001/status",
+    );
+    assert.deepEqual(patch.body, { status: "SHORTLISTED" });
     fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
     await settle();
 
     await loginWithForm("CANDIDATE");
     assert.equal(statValue("Présélections"), "2");
+  });
+
+  it("l'entreprise voit les candidats qui lui ont écrit, avec leur e-mail", async () => {
+    await renderApp({ as: "COMPANY" });
+    await goTo("Espace entreprise");
+    openTab("Candidatures");
+    screen.getByText("Mariama Diallo");
+    screen.getByText("abdoulaye.bah@proavenir.test");
+    // Pas de mention « Démonstration » : ce sont les vraies candidatures.
+    assert.equal(screen.queryByText(/Démonstration/), null);
+  });
+
+  it("une réponse définitive (retenue, refusée) n'est plus modifiable", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    api.applications()[0].status = "ACCEPTED";
+    await renderApp();
+    await goTo("Espace entreprise");
+    openTab("Candidatures");
+    assert.equal(screen.queryByLabelText("Statut de la candidature de Mariama Diallo"), null);
+    screen.getAllByText("Retenue");
+  });
+
+  it("un refus du serveur est affiché à l'entreprise", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await goTo("Espace entreprise");
+    openTab("Candidatures");
+    api.failNext("PATCH", "/companies/me/applications", {
+      status: 409,
+      body: {
+        statusCode: 409,
+        code: "INVALID_APPLICATION_TRANSITION",
+        message: "Ce changement de statut n’est pas possible.",
+      },
+    });
+    type(screen.getByLabelText("Statut de la candidature de Mariama Diallo"), "SHORTLISTED");
+    await settle();
+    assert.match(screen.getByRole("alert").textContent ?? "", /n’est pas possible/);
+  });
+
+  it("un candidat sans candidature voit un espace vide, sans données fictives", async () => {
+    const api = installFakeApi({ session: "CANDIDATE" });
+    api.applications().length = 0;
+    await renderApp();
+    await goTo("Espace candidat");
+    assert.equal(statValue("Candidatures envoyées"), "0");
+    screen.getByText(/Vous n’avez pas encore postulé/);
+    assert.equal(screen.queryByText("85%"), null);
+    assert.equal(screen.queryByText("Marketing & communication"), null);
   });
 });
 
@@ -1012,7 +1129,9 @@ describe("Adresses des pages (React Router)", () => {
   });
 
   it("après la connexion, le visiteur revient sur l'offre qu'il voulait", async () => {
-    await openAt(`/offres/${DEV_JOB_ID}`);
+    // « Stagiaire comptable » : la candidate de démonstration n'y a pas encore postulé.
+    const ACCOUNTING_JOB_ID = "30000000-0000-4000-8000-000000000004";
+    await openAt(`/offres/${ACCOUNTING_JOB_ID}`);
     fireEvent.click(screen.getByRole("button", { name: "Se connecter pour postuler" }));
     await settle();
     assert.equal(path(), "/connexion");
@@ -1022,7 +1141,7 @@ describe("Adresses des pages (React Router)", () => {
     fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: TEST_PASSWORD } });
     fireEvent.click(screen.getByRole("button", { name: /^Se connecter/ }));
     await settle();
-    assert.equal(path(), `/offres/${DEV_JOB_ID}`);
+    assert.equal(path(), `/offres/${ACCOUNTING_JOB_ID}`);
     screen.getByRole("button", { name: "Postuler maintenant" });
   });
 

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CheckCircle2, Eye, FileText } from "lucide-react";
 import type { Job } from "../../types/offer";
 import type { Page } from "../../types/navigation";
 import type { DashboardIdentity } from "../../types/auth";
-import { candidateApplications } from "../../data/mockApplications";
+import type { CandidateApplicationsState } from "../../features/applications/useApplications";
 import { StatCard } from "../../components/ui/StatCard";
 import { CardHeading } from "../../components/ui/CardHeading";
 import { MiniJob } from "../../components/jobs/MiniJob";
@@ -16,22 +16,48 @@ export function CandidateDashboard({
   jobs,
   go,
   identity,
-  showDemoData,
-  applicationStatus,
+  applications: state,
 }: {
   jobs: Job[]; // offres publiques, pour les « Offres recommandées »
   go: (p: Page) => void;
   identity: DashboardIdentity;
-  /** Candidatures fictives : réservées au compte de démonstration (jusqu'à B5). */
-  showDemoData: boolean;
-  applicationStatus: string;
+  /** Candidatures RÉELLES du candidat connecté (API). */
+  applications: CandidateApplicationsState;
 }) {
   const [active, setActive] = useState("Aperçu");
-  const applications = showDemoData
-    ? candidateApplications.map((item, index) =>
-        index === 0 ? { ...item, status: applicationStatus } : item,
-      )
-    : [];
+  const { applications } = state;
+  const loaded = state.status === "success";
+  /** Valeur d'une carte de statistique : « … » tant que la liste n'est pas chargée. */
+  const stat = (count: number) => (loaded ? String(count) : "…");
+
+  /** Tableau des candidatures, ou l'état du chargement (jamais de données fictives). */
+  const applicationsList = (): ReactNode => {
+    if (state.status === "error") {
+      return (
+        <div role="alert" className="flex flex-wrap items-center gap-3 p-5 text-sm">
+          <span className="text-red-700">{state.error}</span>
+          <button onClick={state.reload} className="btn-secondary px-3 py-1.5 text-xs">
+            Réessayer
+          </button>
+        </div>
+      );
+    }
+    if (!loaded) {
+      return <p className="p-5 text-sm text-slate-400">Chargement de vos candidatures…</p>;
+    }
+    if (applications.length === 0) {
+      return (
+        <p className="p-5 text-sm text-slate-500">
+          Vous n’avez pas encore postulé.{" "}
+          <button onClick={() => go("jobs")} className="text-link">
+            Voir les offres
+          </button>
+        </p>
+      );
+    }
+    return <ApplicationTable items={applications} />;
+  };
+
   return (
     <DashboardLayout
       area="candidate"
@@ -44,7 +70,7 @@ export function CandidateDashboard({
         title={active === "Aperçu" ? `Bonjour, ${identity.firstName}` : active}
         subtitle={
           active === "Aperçu"
-            ? "Voici où en sont vos démarches cette semaine."
+            ? "Voici où en sont vos démarches."
             : "Gérez vos informations et votre parcours."
         }
         avatar={identity.initials}
@@ -55,25 +81,23 @@ export function CandidateDashboard({
             <div className="stats-grid">
               <StatCard
                 icon={FileText}
-                value={String(applications.length)}
+                value={stat(applications.length)}
                 label="Candidatures envoyées"
                 tone="blue"
               />
               <StatCard
                 icon={Eye}
-                value={String(
-                  applications.filter((item) => ["Envoyée", "En examen"].includes(item.status))
-                    .length,
+                value={stat(
+                  applications.filter((item) => ["SENT", "IN_REVIEW"].includes(item.status)).length,
                 )}
                 label="En cours"
                 tone="amber"
               />
               <StatCard
                 icon={CheckCircle2}
-                value={String(
-                  applications.filter((item) =>
-                    ["Présélectionnée", "Retenue"].includes(item.status),
-                  ).length,
+                value={stat(
+                  applications.filter((item) => ["SHORTLISTED", "ACCEPTED"].includes(item.status))
+                    .length,
                 )}
                 label="Présélections"
                 tone="green"
@@ -86,23 +110,17 @@ export function CandidateDashboard({
                   action="Tout voir"
                   onAction={() => setActive("Mes candidatures")}
                 />
-                <ApplicationTable items={applications} />
+                {applicationsList()}
               </div>
               <div className="content-card p-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-bold text-[#0c2340]">Votre profil</h2>
-                  <span className="text-sm font-extrabold text-[#15966f]">85%</span>
-                </div>
-                <div className="mt-3 h-2 rounded-full bg-slate-100">
-                  <div className="h-full w-[85%] rounded-full bg-[#15966f]" />
-                </div>
+                <h2 className="font-bold text-[#0c2340]">Votre profil</h2>
                 <div className="mt-6 flex items-center gap-3">
                   <span className="grid size-12 place-items-center rounded-full bg-blue-100 font-bold text-blue-700">
                     {identity.initials}
                   </span>
                   <div>
                     <p className="text-sm font-bold text-[#0c2340]">{identity.name}</p>
-                    <p className="text-xs text-slate-400">Marketing & communication</p>
+                    <p className="text-xs text-slate-400">Compte candidat</p>
                   </div>
                 </div>
                 <button
@@ -131,7 +149,7 @@ export function CandidateDashboard({
         {active === "Mes candidatures" && (
           <div className="content-card overflow-hidden">
             <CardHeading title="Toutes mes candidatures" />
-            <ApplicationTable items={applications} />
+            {applicationsList()}
           </div>
         )}
       </div>

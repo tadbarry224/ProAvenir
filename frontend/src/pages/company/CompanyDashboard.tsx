@@ -15,7 +15,6 @@ import {
 } from "../../types/offer";
 import type { Page } from "../../types/navigation";
 import type { DashboardIdentity } from "../../types/auth";
-import type { RecruitApplication } from "../../types/application";
 import type { CreationStatus } from "../../services/companyOffersService";
 import {
   creationBlockedReason,
@@ -35,12 +34,10 @@ import { DashboardLayout } from "../../components/layout/DashboardLayout";
 import { DashboardTop } from "../../components/layout/DashboardTop";
 import { offerStatusStyle } from "../../features/offers/offerStatusStyle";
 import { RecruitTable } from "../../features/applications/RecruitTable";
+import type { ReceivedApplicationsState } from "../../features/applications/useApplications";
+import type { ApplicationStatusTarget } from "../../services/applicationsService";
 import { PublishModal } from "../../features/offers/PublishModal";
 import { CompanyProfile } from "./CompanyProfile";
-
-/** Les tableaux de candidatures restent fictifs jusqu'à l'étape « candidatures » (B5). */
-const DEMO_APPLICATIONS_NOTICE =
-  "Démonstration : ces candidatures sont fictives. Le suivi réel des candidatures arrive prochainement.";
 
 /** Message à afficher pour une action refusée sur une offre. */
 function actionErrorMessage(offer: Offer, error: OfferActionError): string {
@@ -54,8 +51,7 @@ export function CompanyDashboard({
   company,
   identity: sessionIdentity,
   companyOffers,
-  applications,
-  updateStatus,
+  applications: received,
 }: {
   go: (p: Page) => void;
   /** Affichage du logo et du nom (issus de la session). */
@@ -65,8 +61,7 @@ export function CompanyDashboard({
   /** Offres RÉELLES de l'entreprise connectée (API), actions et états de chargement. */
   companyOffers: CompanyOffersState;
   /** Candidatures de démonstration (fictives jusqu'à B5). */
-  applications: RecruitApplication[];
-  updateStatus: (id: string, status: string) => void;
+  applications: ReceivedApplicationsState;
 }) {
   const { offers, today, status: offersStatus, companyStatus, pending } = companyOffers;
   // Statut relu par l'API à chaque ouverture de l'espace : il remplace celui de la
@@ -121,6 +116,41 @@ export function CompanyDashboard({
     resetMessages();
     const failure = await companyOffers.changeOfferStatus(offer);
     if (failure) setStatusError(actionErrorMessage(offer, failure));
+  };
+
+  /** Le statut d'une candidature a changé : en cas de refus du serveur, on l'affiche. */
+  const updateApplicationStatus = async (id: string, status: ApplicationStatusTarget) => {
+    resetMessages();
+    const failure = await received.changeStatus(id, status);
+    if (failure) setStatusError(failure.message);
+  };
+
+  /** Candidatures reçues (les `limit` plus récentes), ou l'état du chargement. */
+  const applicationsList = (limit?: number) => {
+    if (received.status === "error") {
+      return (
+        <div role="alert" className="flex flex-wrap items-center gap-3 p-5 text-sm">
+          <span className="text-red-700">{received.error}</span>
+          <button onClick={received.reload} className="btn-secondary px-3 py-1.5 text-xs">
+            Réessayer
+          </button>
+        </div>
+      );
+    }
+    if (received.status !== "success") {
+      return <p className="p-5 text-sm text-slate-400">Chargement des candidatures…</p>;
+    }
+    if (received.applications.length === 0) {
+      return <p className="p-5 text-sm text-slate-500">Aucune candidature reçue pour le moment.</p>;
+    }
+    return (
+      <RecruitTable
+        items={received.applications.slice(0, limit)}
+        updateStatus={updateApplicationStatus}
+        pending={received.pending}
+        readOnly={companyStatus === "REJECTED"}
+      />
+    );
   };
 
   /** Valeur d'une carte de statistique : « … » tant que les offres ne sont pas chargées. */
@@ -202,8 +232,20 @@ export function CompanyDashboard({
                 label="Candidatures reçues"
                 tone="green"
               />
-              {/* Statut réel des candidatures disponible à l'étape « candidatures » (B5). */}
-              <StatCard icon={Eye} value="—" label="À examiner" tone="amber" />
+              <StatCard
+                icon={Eye}
+                value={
+                  received.status === "success"
+                    ? String(
+                        received.applications.filter((item) =>
+                          ["SENT", "IN_REVIEW"].includes(item.status),
+                        ).length,
+                      )
+                    : "…"
+                }
+                label="À examiner"
+                tone="amber"
+              />
             </div>
             <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_320px]">
               <div className="content-card overflow-hidden">
@@ -212,25 +254,17 @@ export function CompanyDashboard({
                   action="Tout voir"
                   onAction={() => setActive("Candidatures")}
                 />
-                {applications.length > 0 && (
-                  <p className="px-5 pt-4 text-xs text-slate-400">{DEMO_APPLICATIONS_NOTICE}</p>
-                )}
-                <RecruitTable items={applications} updateStatus={updateStatus} />
+                {applicationsList(5)}
               </div>
               <div className="content-card p-6">
-                <span className="flex items-center gap-2 text-xs font-bold text-emerald-700">
-                  <ShieldCheck size={17} /> ENTREPRISE VÉRIFIÉE
-                </span>
+                {companyStatus && (
+                  <span
+                    className={`flex items-center gap-2 text-xs font-bold uppercase ${companyStatus === "APPROVED" ? "text-emerald-700" : companyStatus === "REJECTED" ? "text-red-700" : "text-amber-700"}`}
+                  >
+                    <ShieldCheck size={17} /> {COMPANY_STATUS_LABELS[companyStatus]}
+                  </span>
+                )}
                 <h3 className="mt-4 font-bold text-[#0c2340]">{company.name}</h3>
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Services professionnels · Conakry
-                </p>
-                <div className="mt-5 border-t border-slate-100 pt-5 text-xs text-slate-500">
-                  <p className="flex justify-between">
-                    <span>Profil complété</span>
-                    <b className="text-[#0c2340]">100%</b>
-                  </p>
-                </div>
                 <button
                   onClick={() => setActive("Profil entreprise")}
                   className="btn-secondary mt-5 w-full"
@@ -244,10 +278,7 @@ export function CompanyDashboard({
         {showApplications && (
           <div className="content-card overflow-hidden">
             <CardHeading title="Candidatures reçues" />
-            {applications.length > 0 && (
-              <p className="px-5 pt-4 text-xs text-slate-400">{DEMO_APPLICATIONS_NOTICE}</p>
-            )}
-            <RecruitTable items={applications} updateStatus={updateStatus} />
+            {applicationsList()}
           </div>
         )}
         {active === "Mes offres" && (

@@ -231,7 +231,7 @@
 </svg>
 </span>
 <div>
-<p class="text-2xl font-extrabold text-[#0c2340]">—</p>
+<p class="text-2xl font-extrabold text-[#0c2340]">2</p>
 <p class="text-xs font-medium text-slate-500">À examiner</p>
 </div>
 </div>
@@ -248,7 +248,6 @@
 </svg>
 </button>
 </div>
-<p class="px-5 pt-4 text-xs text-slate-400">Démonstration : ces candidatures sont fictives. Le suivi réel des candidatures arrive prochainement.</p>
 <div class="overflow-x-auto">
 <table class="data-table">
 <thead>
@@ -264,16 +263,21 @@
 <td>
 <span class="flex items-center gap-3">
 <span class="grid size-8 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">MD</span>
+<span>
 <b>Mariama Diallo</b>
+<small>
+<a href="mailto:mariama.diallo@proavenir.test" class="hover:underline">mariama.diallo@proavenir.test</a>
+</small>
+</span>
 </span>
 </td>
 <td>Assistant·e marketing digital</td>
 <td>12 déc. 2026</td>
 <td>
-<select class="status border-0 outline-none bg-amber-50 text-amber-700">
-<option>En examen</option>
-<option>Présélectionnée</option>
-<option>Refusée</option>
+<select aria-label="Statut de la candidature de Mariama Diallo" class="status border-0 outline-none bg-amber-50 text-amber-700">
+<option value="IN_REVIEW">En examen</option>
+<option value="SHORTLISTED">Présélectionnée</option>
+<option value="REJECTED">Refusée</option>
 </select>
 </td>
 </tr>
@@ -281,32 +285,21 @@
 <td>
 <span class="flex items-center gap-3">
 <span class="grid size-8 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">AB</span>
+<span>
 <b>Abdoulaye Bah</b>
+<small>
+<a href="mailto:abdoulaye.bah@proavenir.test" class="hover:underline">abdoulaye.bah@proavenir.test</a>
+</small>
+</span>
 </span>
 </td>
 <td>Assistant·e marketing digital</td>
 <td>11 déc. 2026</td>
 <td>
-<select class="status border-0 outline-none bg-blue-50 text-blue-700">
-<option>Envoyée</option>
-<option>En examen</option>
-</select>
-</td>
-</tr>
-<tr>
-<td>
-<span class="flex items-center gap-3">
-<span class="grid size-8 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">FC</span>
-<b>Fatoumata Camara</b>
-</span>
-</td>
-<td>Commercial·e terrain</td>
-<td>09 déc. 2026</td>
-<td>
-<select class="status border-0 outline-none bg-emerald-50 text-emerald-700">
-<option>Présélectionnée</option>
-<option>Retenue</option>
-<option>Refusée</option>
+<select aria-label="Statut de la candidature de Abdoulaye Bah" class="status border-0 outline-none bg-blue-50 text-blue-700">
+<option value="SENT">Envoyée</option>
+<option value="IN_REVIEW">En examen</option>
+<option value="REJECTED">Refusée</option>
 </select>
 </td>
 </tr>
@@ -315,21 +308,14 @@
 </div>
 </div>
 <div class="content-card p-6">
-<span class="flex items-center gap-2 text-xs font-bold text-emerald-700">
+<span class="flex items-center gap-2 text-xs font-bold uppercase text-emerald-700">
 <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check" aria-hidden="true">
 <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z">
 </path>
 <path d="m9 12 2 2 4-4">
 </path>
-</svg> ENTREPRISE VÉRIFIÉE</span>
+</svg> Compte vérifié</span>
 <h3 class="mt-4 font-bold text-[#0c2340]">Kamsar Solutions</h3>
-<p class="mt-2 text-xs leading-5 text-slate-500">Services professionnels · Conakry</p>
-<div class="mt-5 border-t border-slate-100 pt-5 text-xs text-slate-500">
-<p class="flex justify-between">
-<span>Profil complété</span>
-<b class="text-[#0c2340]">100%</b>
-</p>
-</div>
 <button class="btn-secondary mt-5 w-full">Voir le profil</button>
 </div>
 </div>

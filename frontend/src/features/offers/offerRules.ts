@@ -76,3 +76,40 @@ export function changeStatus(offer: Offer, today: string, now: Date): StatusChan
 
   return { ok: true, offer: { ...offer, status: target } };
 }
+
+// --- Droits de l'entreprise (mêmes règles que le serveur, pour l'affichage) ---
+
+export const COMPANY_STATUS_MESSAGES = {
+  pendingPublish:
+    "Votre entreprise est en attente de validation : vous pouvez enregistrer un brouillon. La publication sera possible une fois l’entreprise validée.",
+  rejected:
+    "Votre entreprise a été refusée par l’administration : vos offres sont en lecture seule.",
+} as const;
+
+type CompanyStatusValue = "PENDING" | "APPROVED" | "REJECTED";
+
+/** Raison pour laquelle l'entreprise ne peut pas CRÉER d'offre (null : autorisé). */
+export function creationBlockedReason(companyStatus: CompanyStatusValue | null): string | null {
+  return companyStatus === "REJECTED" ? COMPANY_STATUS_MESSAGES.rejected : null;
+}
+
+/** Raison pour laquelle l'entreprise ne peut pas PUBLIER (null : autorisé). */
+export function publicationBlockedReason(companyStatus: CompanyStatusValue | null): string | null {
+  if (companyStatus === "REJECTED") return COMPANY_STATUS_MESSAGES.rejected;
+  if (companyStatus === "PENDING") return COMPANY_STATUS_MESSAGES.pendingPublish;
+  return null;
+}
+
+/**
+ * Raison pour laquelle le bouton « Publier / Clôturer / Réouvrir » d'une offre est
+ * désactivé (null : autorisé). Comme le serveur : en attente, on peut clôturer
+ * mais ni publier ni rouvrir ; refusée, aucune modification.
+ */
+export function statusActionBlockedReason(
+  companyStatus: CompanyStatusValue | null,
+  offerStatus: OfferStatus,
+): string | null {
+  if (companyStatus === "REJECTED") return COMPANY_STATUS_MESSAGES.rejected;
+  if (nextStatus(offerStatus) === "PUBLISHED") return publicationBlockedReason(companyStatus);
+  return null;
+}

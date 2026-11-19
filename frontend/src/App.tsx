@@ -8,8 +8,8 @@ import { useAuth } from "./features/auth/authContext";
 import { identityOf, ownsDemoData } from "./features/auth/identity";
 import { useOffers } from "./features/offers/useOffers";
 import { usePublicOffers } from "./features/offers/usePublicOffers";
-import { DEMO_COMPANY_ID, findCompany } from "./data/mockCompanies";
 import { initialRecruitApplications } from "./data/mockApplications";
+import { SESSION_EXPIRED_MESSAGE } from "./services/apiClient";
 import { Header } from "./components/layout/Header";
 import { Home } from "./pages/Home";
 import { JobsPage } from "./pages/JobsPage";
@@ -18,13 +18,6 @@ import { AuthPage } from "./pages/AuthPage";
 import { CandidateDashboard } from "./pages/candidate/CandidateDashboard";
 import { CompanyDashboard } from "./pages/company/CompanyDashboard";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
-
-// Entreprise de démonstration : le CONTENU de l'espace entreprise reste fictif jusqu'à B4
-// (l'accès, lui, exige déjà une session avec le rôle COMPANY).
-const demoCompany = findCompany(DEMO_COMPANY_ID);
-// Identifiant local des offres créées par une entreprise autre que celle de démonstration
-// (mémoire du navigateur uniquement, jusqu'à B4).
-const LOCAL_COMPANY_ID = 0;
 
 export default function App() {
   return (
@@ -37,11 +30,11 @@ export default function App() {
 function ProAvenirApp() {
   const [page, setPage] = useState<Page>("home");
   const auth = useAuth();
-  // Offres de l'espace entreprise : données locales fictives jusqu'à l'étape B4.
-  const { today, getCompanyOffers, createOffer, changeOfferStatus } = useOffers();
+  // Message affiché sur la page de connexion après l'expiration de la session.
+  const [sessionNotice, setSessionNotice] = useState("");
   // Offres publiques : chargées depuis l'API (PostgreSQL), sans filtre.
   // Utilisées par l'accueil, les offres recommandées et le compteur par type.
-  const { jobs: publicJobs } = usePublicOffers();
+  const { jobs: publicJobs, reload: reloadPublicOffers } = usePublicOffers();
   // Offre consultée (choisie depuis l'accueil ou la liste filtrée par l'API).
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [search, setSearch] = useState("");
@@ -61,6 +54,7 @@ function ProAvenirApp() {
       void auth.logout();
       target = "home";
     }
+    setSessionNotice("");
     setPage(target);
     setMobileOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -91,20 +85,22 @@ function ProAvenirApp() {
     else if (auth.user && auth.user.role !== requiredRole) setPage(ROLE_HOME[auth.user.role]);
   }, [requiredRole, auth.status, auth.user]);
 
-  // Identité affichée : toujours la personne connectée. Les données fictives
-  // (candidatures, offres de l'entreprise) ne sont montrées qu'aux comptes de
-  // démonstration ; un nouveau compte voit un espace vide (vraies données en B4–B5).
+  // Offres de l'espace entreprise : celles de l'entreprise de la SESSION, lues dans
+  // PostgreSQL via l'API, rechargées à chaque ouverture de l'espace (F5 compris).
+  const companyOffers = useOffers({
+    session: auth,
+    userId: auth.user?.id ?? null,
+    enabled: page === "company" && allowed,
+    // Une publication ou une clôture change la liste publique : on la relit.
+    onChanged: reloadPublicOffers,
+    // La session est effacée et l'application revient à la connexion : on explique pourquoi.
+    onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
+  });
+
+  // Identité affichée : toujours la personne connectée. Les CANDIDATURES fictives
+  // ne sont montrées qu'aux comptes de démonstration (vraies données en B5).
   const identity = auth.user ? identityOf(auth.user) : null;
   const showDemoData = ownsDemoData(auth.user);
-  const dashboardCompany =
-    showDemoData && demoCompany
-      ? demoCompany
-      : {
-          id: LOCAL_COMPANY_ID,
-          name: identity?.name ?? "",
-          initials: identity?.initials ?? "",
-          logoColor: "blue",
-        };
 
   const isDashboard = ["candidate", "company", "admin"].includes(page);
   const publicHeader = !["login", "register"].includes(page);
@@ -143,7 +139,7 @@ function ProAvenirApp() {
         ) : (
           jobsPage
         ))}
-      {page === "login" && <AuthPage mode="login" go={go} />}
+      {page === "login" && <AuthPage mode="login" go={go} notice={sessionNotice} />}
       {page === "register" && <AuthPage mode="register" go={go} />}
       {page === "candidate" && allowed && identity && (
         <CandidateDashboard
@@ -159,14 +155,11 @@ function ProAvenirApp() {
       {page === "company" && allowed && identity && (
         <CompanyDashboard
           go={go}
-          company={dashboardCompany}
+          company={{ name: identity.name, initials: identity.initials, logoColor: "blue" }}
           identity={identity}
-          offers={getCompanyOffers(dashboardCompany.id)}
-          today={today}
+          companyOffers={companyOffers}
           applications={showDemoData ? recruitApplications : []}
           updateStatus={updateApplicationStatus}
-          onCreateOffer={(input, status) => createOffer(dashboardCompany.id, input, status)}
-          onChangeOfferStatus={changeOfferStatus}
         />
       )}
       {page === "admin" && allowed && identity && <AdminDashboard go={go} identity={identity} />}

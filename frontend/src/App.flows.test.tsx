@@ -17,7 +17,7 @@ import {
   statValue,
   type,
 } from "./test/appTestUtils";
-import { FAKE_USERS, installFakeApi, TEST_PASSWORD } from "./test/fakeApi";
+import { FAKE_USERS, installFakeApi, TEST_PASSWORD, type FakeApi } from "./test/fakeApi";
 
 /** Titre « N offre(s) disponible(s) » de la liste publique, une fois le chargement terminé. */
 async function offersCount() {
@@ -161,8 +161,27 @@ describe("Liste publique des offres", () => {
   });
 });
 
-describe("Publication d'offres par une entreprise", () => {
+describe("Offres de l'entreprise (API réelle)", () => {
   setupAppTest();
+
+  const KAMSAR = FAKE_USERS.COMPANY.company!.id;
+  const KAMSAR_OFFER = "Assistant·e marketing digital";
+  const companyCalls = (api: FakeApi, method?: string) =>
+    api.calls.filter(
+      (call) => call.path.startsWith("/companies/me/offers") && (!method || call.method === method),
+    );
+  /** Ouvre l'onglet « Mes offres » de l'espace entreprise (déjà affiché). */
+  async function myOffers() {
+    openTab("Mes offres");
+    await settle();
+  }
+  /** Bouton d'action (« Publier », « Clôturer », « Réouvrir ») d'une offre de la liste. */
+  const offerButton = (title: string, name: string) => {
+    const row = screen.getByText(title).closest(".p-5") as HTMLElement;
+    return within(row).getByRole("button", { name }) as HTMLButtonElement;
+  };
+  const offerStatus = (title: string) =>
+    (screen.getByText(title).closest(".p-5") as HTMLElement).querySelector(".status")?.textContent;
 
   it("refuse une publication incomplète et affiche les erreurs", async () => {
     await renderApp({ as: "COMPANY" });
@@ -176,74 +195,307 @@ describe("Publication d'offres par une entreprise", () => {
     screen.getByText("La date limite est obligatoire pour publier.");
   });
 
-  // Jusqu'à l'étape B4, l'espace entreprise travaille sur des données locales :
-  // ses actions ne modifient pas la liste publique, qui vient de PostgreSQL.
-  it("publie une offre complète, conservée pendant la navigation (pas encore envoyée à l'API)", async () => {
-    await renderApp({ as: "COMPANY" });
+  it("charge les offres réelles de l'entreprise avec son jeton, sans identifiant d'entreprise", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
     await goTo("Espace entreprise");
     assert.equal(statValue("Offres actives"), "1");
+    // Compteur RÉEL (PostgreSQL) : 2 candidatures sur l'offre de Kamsar.
+    assert.equal(statValue("Candidatures reçues"), "2");
+    assert.equal(statValue("À examiner"), "—");
 
-    await openPublishModal();
-    fillCompleteOffer("Comptable junior");
-    fireEvent.click(screen.getByRole("button", { name: /Publier l.offre/ }));
-    screen.getByText("Votre offre a été publiée avec succès.");
-    screen.getByText("Comptable junior");
-
-    await goTo("Offres");
-    assert.equal(await offersCount(), "6 offres disponibles");
-    assert.equal(screen.queryByText("Comptable junior"), null);
-
-    await goTo("Accueil");
-    await goTo("Espace entreprise");
-    assert.equal(statValue("Offres actives"), "2");
-    openTab("Mes offres");
-    screen.getByText("Comptable junior");
-  });
-
-  it("garde un brouillon hors de la liste publique", async () => {
-    await renderApp({ as: "COMPANY" });
-    await openPublishModal();
-    type(screen.getByPlaceholderText("Ex. Assistant·e administratif·ve"), "Brouillon secret");
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer en brouillon" }));
-    screen.getByText("Le brouillon fictif a été enregistré dans vos offres.");
-    screen.getByText("Brouillon");
-
-    await goTo("Offres");
-    assert.equal(await offersCount(), "6 offres disponibles");
-    assert.equal(screen.queryByText("Brouillon secret"), null);
-  });
-
-  it("refuse de publier un brouillon incomplet depuis « Mes offres »", async () => {
-    await renderApp({ as: "COMPANY" });
-    await openPublishModal();
-    type(screen.getByPlaceholderText("Ex. Assistant·e administratif·ve"), "Brouillon incomplet");
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer en brouillon" }));
-
-    fireEvent.click(screen.getByRole("button", { name: "Publier" }));
-    assert.match(screen.getByRole("alert").textContent ?? "", /ne peut pas être publiée/);
-    screen.getByText("Brouillon");
-  });
-
-  it("clôture une offre dans l'espace entreprise (liste publique inchangée avant B4)", async () => {
-    await renderApp({ as: "COMPANY" });
-    await goTo("Espace entreprise");
-    openTab("Mes offres");
-    fireEvent.click(screen.getByRole("button", { name: "Clôturer" }));
-    screen.getByText("Clôturée");
-
-    await goTo("Offres");
-    assert.equal(await offersCount(), "6 offres disponibles");
-    screen.getByText("Assistant·e marketing digital");
+    await myOffers();
+    screen.getByText(KAMSAR_OFFER);
+    screen.getByText(/^2 candidature\(s\)/);
+    const [load] = companyCalls(api, "GET");
+    assert.equal(load.path, "/companies/me/offers");
+    assert.match(load.authorization ?? "", /^Bearer jeton-\d+$/);
+    assert.ok(!api.requests.some((url) => url.search.includes("company")));
   });
 
   it("n'affiche que les offres de l'entreprise connectée", async () => {
     await renderApp({ as: "COMPANY" });
     await goTo("Espace entreprise");
-    openTab("Mes offres");
-    screen.getByText("Assistant·e marketing digital");
+    await myOffers();
+    screen.getByText(KAMSAR_OFFER);
     assert.equal(screen.queryByText("Développeur·se web junior"), null);
   });
+
+  it("enregistre un brouillon via l'API, invisible publiquement, conservé après F5", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    const { unmount } = await renderApp();
+    await openPublishModal();
+    type(screen.getByPlaceholderText("Ex. Assistant·e administratif·ve"), "Brouillon secret");
+    type(screen.getByLabelText("Ville"), "Labé");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer en brouillon" }));
+    await settle();
+    screen.getByText("Le brouillon a été enregistré dans vos offres.");
+    assert.equal(offerStatus("Brouillon secret"), "Brouillon");
+
+    // Corps envoyé : identifiants de l'API, jamais d'entreprise choisie par le navigateur.
+    const [created] = companyCalls(api, "POST");
+    assert.deepEqual(created.body, {
+      status: "DRAFT",
+      title: "Brouillon secret",
+      type: "JOB",
+      cityId: "labe",
+      domainId: "marketing",
+      description: "",
+      deadline: null,
+      skills: [],
+    });
+    assert.equal(api.companyOffers(KAMSAR).length, 2);
+
+    await goTo("Offres");
+    assert.equal(await offersCount(), "6 offres disponibles");
+    assert.equal(screen.queryByText("Brouillon secret"), null);
+
+    // F5 : la page est rechargée, les données viennent de nouveau de l'API.
+    unmount();
+    await renderApp();
+    await goTo("Espace entreprise");
+    await myOffers();
+    assert.equal(offerStatus("Brouillon secret"), "Brouillon");
+  });
+
+  it("publie une offre : visible dans la liste publique, compteurs mis à jour", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await openPublishModal();
+    fillCompleteOffer("Comptable junior");
+    fireEvent.click(screen.getByRole("button", { name: /Publier l.offre/ }));
+    await settle();
+    screen.getByText("Votre offre a été publiée avec succès.");
+    assert.equal(offerStatus("Comptable junior"), "Active");
+    assert.equal(companyCalls(api, "POST")[0].body.cityId, "kindia");
+
+    await goTo("Offres");
+    assert.equal(await offersCount(), "7 offres disponibles");
+    screen.getByText("Comptable junior");
+
+    await goTo("Espace entreprise");
+    assert.equal(statValue("Offres actives"), "2");
+  });
+
+  it("clôture puis rouvre une offre : liste publique et compteur synchronisés", async () => {
+    await renderApp({ as: "COMPANY" });
+    await goTo("Espace entreprise");
+    await myOffers();
+    fireEvent.click(offerButton(KAMSAR_OFFER, "Clôturer"));
+    await settle();
+    assert.equal(offerStatus(KAMSAR_OFFER), "Clôturée");
+
+    await goTo("Offres");
+    assert.equal(await offersCount(), "5 offres disponibles");
+    assert.equal(screen.queryByText(KAMSAR_OFFER), null);
+
+    await goTo("Espace entreprise");
+    assert.equal(statValue("Offres actives"), "0");
+    await myOffers();
+    fireEvent.click(offerButton(KAMSAR_OFFER, "Réouvrir"));
+    await settle();
+    assert.equal(offerStatus(KAMSAR_OFFER), "Active");
+
+    await goTo("Offres");
+    assert.equal(await offersCount(), "6 offres disponibles");
+    screen.getByText(KAMSAR_OFFER);
+  });
+
+  it("refuse de publier un brouillon incomplet (409) avec un message clair", async () => {
+    await renderApp({ as: "COMPANY" });
+    await openPublishModal();
+    type(screen.getByPlaceholderText("Ex. Assistant·e administratif·ve"), "Brouillon incomplet");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer en brouillon" }));
+    await settle();
+
+    fireEvent.click(offerButton("Brouillon incomplet", "Publier"));
+    await settle();
+    const alert = screen.getByRole("alert").textContent ?? "";
+    assert.match(alert, /« Brouillon incomplet » ne peut pas être publiée/);
+    assert.match(alert, /La date limite est obligatoire pour publier/);
+    assert.equal(offerStatus("Brouillon incomplet"), "Brouillon");
+  });
+
+  it("entreprise en attente : brouillon possible, publication et réouverture impossibles", async () => {
+    const api = installFakeApi({ session: "COMPANY", companyStatus: "PENDING" });
+    await renderApp();
+    await openPublishModal();
+    const publishButton = screen.getByRole("button", { name: /Publier l.offre/ });
+    assert.equal((publishButton as HTMLButtonElement).disabled, true);
+    screen.getByText(/en attente de validation : vous pouvez enregistrer un brouillon/);
+
+    type(screen.getByPlaceholderText("Ex. Assistant·e administratif·ve"), "Brouillon en attente");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer en brouillon" }));
+    await settle();
+    screen.getByText("Le brouillon a été enregistré dans vos offres.");
+    assert.equal(offerButton("Brouillon en attente", "Publier").disabled, true);
+    // Clôturer une offre existante reste possible.
+    assert.equal(offerButton(KAMSAR_OFFER, "Clôturer").disabled, false);
+    assert.equal(companyCalls(api, "PATCH").length, 0);
+  });
+
+  it("entreprise refusée : lecture seule, aucune création ni modification", async () => {
+    const api = installFakeApi({ session: "COMPANY", companyStatus: "REJECTED" });
+    await renderApp();
+    await goTo("Espace entreprise");
+    fireEvent.click(screen.getAllByRole("button", { name: "Publier une offre" })[0]);
+    assert.match(screen.getByRole("alert").textContent ?? "", /refusée par l’administration/);
+    assert.equal(screen.queryByRole("button", { name: /Publier l.offre/ }), null);
+
+    await myOffers();
+    assert.equal(offerButton(KAMSAR_OFFER, "Clôturer").disabled, true);
+    assert.equal(companyCalls(api, "POST").length + companyCalls(api, "PATCH").length, 0);
+  });
+
+  it("affiche sous le champ concerné une erreur de validation du serveur (400)", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await openPublishModal();
+    fillCompleteOffer("Offre refusée");
+    api.failNext("POST", "/companies/me/offers", {
+      status: 400,
+      body: {
+        statusCode: 400,
+        code: "VALIDATION_FAILED",
+        message: ["La date limite ne peut pas être dans le passé."],
+        details: [{ field: "deadline", message: "La date limite ne peut pas être dans le passé." }],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Publier l.offre/ }));
+    await settle();
+    // La fenêtre reste ouverte, l'erreur est sous « Date limite ».
+    // Le libellé contient maintenant aussi le message d'erreur : recherche par son début.
+    const deadline = screen.getByLabelText(/^Date limite/);
+    assert.equal(deadline.getAttribute("aria-invalid"), "true");
+    screen.getByText("La date limite ne peut pas être dans le passé.");
+    assert.equal(screen.queryByText("Votre offre a été publiée avec succès."), null);
+  });
+
+  it("affiche dans la fenêtre un refus de droits du serveur (403)", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await openPublishModal();
+    fillCompleteOffer("Offre interdite");
+    api.failNext("POST", "/companies/me/offers", {
+      status: 403,
+      body: {
+        statusCode: 403,
+        code: "COMPANY_NOT_APPROVED",
+        message:
+          "Votre entreprise doit être validée par l’administration avant de publier une offre.",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Publier l.offre/ }));
+    await settle();
+    assert.match(screen.getByRole("alert").textContent ?? "", /doit être validée/);
+  });
+
+  it.each([
+    [404, "OFFER_NOT_FOUND", "Offre introuvable."],
+    [409, "INVALID_STATUS_TRANSITION", "Cette offre est déjà clôturée."],
+  ])(
+    "affiche une erreur %i (%s) sur une action, sans changer l'affichage",
+    async (status, code, message) => {
+      const api = installFakeApi({ session: "COMPANY" });
+      await renderApp();
+      await goTo("Espace entreprise");
+      await myOffers();
+      api.failNext("PATCH", "/companies/me/offers/", {
+        status,
+        body: { statusCode: status, code, message },
+      });
+      fireEvent.click(offerButton(KAMSAR_OFFER, "Clôturer"));
+      await settle();
+      assert.equal(screen.getByRole("alert").textContent, message);
+      assert.equal(offerStatus(KAMSAR_OFFER), "Active");
+    },
+  );
+
+  it("session expirée (401) : retour à la connexion avec un message clair", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await goTo("Espace entreprise");
+    await myOffers();
+    api.revokeSession(); // la session a expiré côté serveur
+    fireEvent.click(offerButton(KAMSAR_OFFER, "Clôturer"));
+    await settle();
+    screen.getByRole("heading", { level: 2, name: "Connexion" });
+    screen.getByText("Votre session a expiré. Reconnectez-vous pour continuer.");
+    assert.equal(api.companyOffers(KAMSAR)[0].status, "PUBLISHED");
+  });
+
+  it("affiche le chargement, puis une erreur réseau, puis recharge avec « Réessayer »", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    api.failNext("GET", "/companies/me/offers", "network");
+    const header = within(document.querySelector("header") as HTMLElement);
+    fireEvent.click(header.getByRole("button", { name: "Ouvrir le menu" }));
+    const buttons = header.getAllByRole("button", { name: "Espace entreprise" });
+    fireEvent.click(buttons[buttons.length - 1]);
+    openTab("Mes offres");
+    // Avant la réponse du serveur :
+    screen.getByText("Chargement de vos offres…");
+    assert.equal(statValueOrNull("Offres actives"), null);
+    await settle();
+    assert.match(screen.getByRole("alert").textContent ?? "", /Impossible de joindre le serveur/);
+    // Aucune offre fictive à la place de l'erreur.
+    assert.equal(screen.queryByText(KAMSAR_OFFER), null);
+
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    await settle();
+    screen.getByText(KAMSAR_OFFER);
+  });
+
+  it("un double clic n'envoie qu'une seule création", async () => {
+    const api = installFakeApi({ session: "COMPANY" });
+    await renderApp();
+    await openPublishModal();
+    fillCompleteOffer("Offre unique");
+    const publishButton = screen.getByRole("button", { name: /Publier l.offre/ });
+    fireEvent.click(publishButton);
+    fireEvent.click(publishButton);
+    await settle();
+    assert.equal(companyCalls(api, "POST").length, 1);
+    assert.equal(api.companyOffers(KAMSAR).length, 2);
+  });
+
+  it("aucune fuite entre entreprises : un autre compte ne voit jamais les offres de Kamsar", async () => {
+    const api = installFakeApi();
+    await renderApp();
+    await loginWithForm("COMPANY");
+    await myOffers();
+    screen.getByText(KAMSAR_OFFER);
+    fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+    await settle();
+
+    // Nouvelle entreprise (en attente) : liste vide, sans aucune offre de Kamsar.
+    fireEvent.click(screen.getAllByRole("button", { name: "Créer un compte" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Entreprise" }));
+    type(screen.getByLabelText("Nom complet"), "Ibrahima Camara");
+    type(screen.getByLabelText("Nom de l’entreprise"), "Labé Transport");
+    type(screen.getByLabelText("Adresse e-mail"), "rh@labe-transport.example");
+    type(screen.getByLabelText("Mot de passe"), "motdepasse-123");
+    type(screen.getByLabelText("Confirmer le mot de passe"), "motdepasse-123");
+    fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
+    await settle();
+    await myOffers();
+    screen.getByText("Vous n’avez encore publié aucune offre.");
+    assert.equal(screen.queryByText(KAMSAR_OFFER), null);
+    assert.equal(statValueOrNull("Offres actives"), null); // onglet « Mes offres » affiché
+    // Aucun appel n'a jamais transmis d'identifiant d'entreprise.
+    assert.ok(companyCalls(api).every((call) => !("companyId" in call.body)));
+  });
 });
+
+/** Valeur d'une carte de statistique, ou null si elle n'est pas affichée. */
+function statValueOrNull(label: string) {
+  try {
+    const value = statValue(label);
+    return value === "…" ? null : value;
+  } catch {
+    return null;
+  }
+}
 
 describe("Suivi des candidatures", () => {
   setupAppTest();

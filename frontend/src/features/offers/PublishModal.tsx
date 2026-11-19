@@ -13,20 +13,38 @@ import { validateOffer, type OfferErrors, type ValidationMode } from "./validate
 import { todayIsoDate } from "../../lib/dates";
 import { FieldError } from "../../components/ui/FieldError";
 import { emptyOfferForm } from "./emptyOfferForm";
+import type { OfferActionError } from "./companyOfferMapping";
+
+/** Réponse du parent après l'envoi : null si tout s'est bien passé, sinon l'erreur. */
+type SubmitResult = Promise<OfferActionError | null> | void;
 
 export function PublishModal({
   onClose,
   onPublish,
   onDraft,
+  cities = OFFER_CITIES,
+  domains = OFFER_DOMAINS,
+  submitting = false,
+  publishBlockedReason,
 }: {
   onClose: () => void;
-  onPublish: (offer: OfferInput) => void;
-  onDraft: (offer: OfferInput) => void;
+  onPublish: (offer: OfferInput) => SubmitResult;
+  onDraft: (offer: OfferInput) => SubmitResult;
+  /** Villes et domaines proposés (ceux acceptés par l'API). */
+  cities?: readonly string[];
+  domains?: readonly string[];
+  /** Vrai pendant l'envoi : les deux boutons sont désactivés (pas de double envoi). */
+  submitting?: boolean;
+  /** Si renseigné, la publication est impossible (ex. entreprise en attente) : explication affichée. */
+  publishBlockedReason?: string;
 }) {
   // Un seul état regroupe tous les champs : React connaît en permanence chaque valeur.
   const [values, setValues] = useState<OfferFormValues>(emptyOfferForm);
   const [errors, setErrors] = useState<OfferErrors>({});
+  // Erreur du serveur qui ne concerne pas un champ précis (droits, réseau, session…).
+  const [formError, setFormError] = useState("");
   const today = todayIsoDate();
+  const publishDisabled = submitting || Boolean(publishBlockedReason);
 
   /** Met à jour un champ et efface son erreur dès que l'utilisateur le corrige. */
   const update = <K extends OfferField>(field: K, value: OfferFormValues[K]) => {
@@ -39,20 +57,33 @@ export function PublishModal({
     });
   };
 
-  /** Valide selon le mode, puis transmet l'objet complet au parent si tout est correct. */
-  const submit = (mode: ValidationMode, form: HTMLFormElement | null) => {
+  /** Affiche des erreurs par champ et place le curseur sur le premier champ concerné. */
+  const showErrors = (fieldErrors: OfferErrors, form: HTMLFormElement | null) => {
+    setErrors(fieldErrors);
+    // Les erreurs suivent l'ordre du formulaire.
+    const firstField = Object.keys(fieldErrors)[0];
+    const element = firstField ? form?.elements.namedItem(firstField) : null;
+    if (element instanceof HTMLElement) element.focus();
+  };
+
+  /**
+   * Valide selon le mode (vérification immédiate dans le navigateur), puis transmet
+   * l'offre au parent. Le SERVEUR revérifie tout : ses erreurs sont affichées
+   * sous les champs concernés, ou au-dessus des boutons.
+   */
+  const submit = async (mode: ValidationMode, form: HTMLFormElement | null) => {
+    if (submitting || (mode === "publish" && publishBlockedReason)) return;
     const result = validateOffer(values, mode, today);
     if (!result.ok) {
-      setErrors(result.errors);
-      // Place le curseur sur le premier champ en erreur (les erreurs suivent l'ordre du formulaire).
-      const firstField = Object.keys(result.errors)[0];
-      const element = firstField ? form?.elements.namedItem(firstField) : null;
-      if (element instanceof HTMLElement) element.focus();
+      showErrors(result.errors, form);
       return;
     }
     setErrors({});
-    if (mode === "publish") onPublish(result.data);
-    else onDraft(result.data);
+    setFormError("");
+    const failure = await (mode === "publish" ? onPublish(result.data) : onDraft(result.data));
+    if (!failure) return;
+    if (Object.keys(failure.fieldErrors).length > 0) showErrors(failure.fieldErrors, form);
+    else setFormError(failure.message);
   };
 
   /** Attributs d'accessibilité communs : signale le champ invalide aux lecteurs d'écran. */
@@ -69,7 +100,7 @@ export function PublishModal({
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          submit("publish", e.currentTarget);
+          void submit("publish", e.currentTarget);
         }}
         className="modal-card max-h-[90vh] overflow-y-auto"
       >
@@ -116,7 +147,7 @@ export function PublishModal({
               value={values.city}
               onChange={(event) => update("city", event.target.value as OfferFormValues["city"])}
             >
-              {OFFER_CITIES.map((city) => (
+              {cities.map((city) => (
                 <option key={city}>{city}</option>
               ))}
             </select>
@@ -131,7 +162,7 @@ export function PublishModal({
                 update("domain", event.target.value as OfferFormValues["domain"])
               }
             >
-              {OFFER_DOMAINS.map((domain) => (
+              {domains.map((domain) => (
                 <option key={domain}>{domain}</option>
               ))}
             </select>
@@ -172,16 +203,31 @@ export function PublishModal({
             <FieldError id="offer-skills-error" message={errors.skills} />
           </label>
         </div>
+        {publishBlockedReason && (
+          <p className="mt-5 rounded-xl bg-slate-100 px-3 py-2.5 text-xs leading-5 text-slate-600">
+            {publishBlockedReason}
+          </p>
+        )}
+        {formError && (
+          <p role="alert" className="mt-5 rounded-xl bg-red-50 px-3 py-2.5 text-xs text-red-700">
+            {formError}
+          </p>
+        )}
         <div className="mt-6 flex gap-3">
           <button
             type="button"
-            disabled={!values.title.trim()}
-            onClick={(event) => submit("draft", event.currentTarget.form)}
+            disabled={!values.title.trim() || submitting}
+            onClick={(event) => void submit("draft", event.currentTarget.form)}
             className="btn-secondary flex-1 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Enregistrer en brouillon
           </button>
-          <button className="btn-primary flex-1">Publier l’offre</button>
+          <button
+            disabled={publishDisabled}
+            className={`btn-primary flex-1${publishDisabled ? " cursor-not-allowed opacity-50" : ""}`}
+          >
+            Publier l’offre
+          </button>
         </div>
       </form>
     </div>

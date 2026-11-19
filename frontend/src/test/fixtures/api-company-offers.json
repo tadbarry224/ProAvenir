@@ -1,0 +1,39 @@
+{
+  "data": [
+    {
+      "id": "30000000-0000-4000-8000-000000000001",
+      "title": "Assistant·e marketing digital",
+      "type": "INTERNSHIP",
+      "contractType": "INTERNSHIP",
+      "workSchedule": null,
+      "duration": "6 mois",
+      "status": "PUBLISHED",
+      "description": "Rejoignez une équipe dynamique pour contribuer à la stratégie digitale, produire des contenus adaptés aux audiences locales et suivre les performances de nos campagnes. Vous travaillerez aux côtés de l’équipe commerciale sur des projets concrets.",
+      "deadline": "2026-12-28",
+      "skills": ["Réseaux sociaux", "Canva", "Communication", "Analyse"],
+      "featured": true,
+      "publishedAt": "2026-12-08T12:00:00.000Z",
+      "closedAt": null,
+      "createdAt": "2026-12-08T12:00:00.000Z",
+      "updatedAt": "2026-11-13T10:50:54.548Z",
+      "city": {
+        "id": "conakry",
+        "name": "Conakry"
+      },
+      "domain": {
+        "id": "marketing",
+        "name": "Marketing"
+      },
+      "applicationsCount": 2,
+      "publiclyVisible": true
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "today": "2026-11-19",
+    "company": {
+      "name": "Kamsar Solutions",
+      "status": "APPROVED"
+    }
+  }
+}

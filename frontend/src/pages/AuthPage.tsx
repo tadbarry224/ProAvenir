@@ -14,7 +14,16 @@ import { Logo } from "../components/layout/Logo";
 import { useAuth } from "../features/auth/authContext";
 import { DEMO_ACCOUNTS } from "../features/auth/demoAccounts";
 
-export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: Page) => void }) {
+export function AuthPage({
+  mode,
+  go,
+  notice,
+}: {
+  mode: "login" | "register";
+  go: (page: Page) => void;
+  /** Information à afficher au-dessus du formulaire (ex. session expirée). */
+  notice?: string;
+}) {
   const register = mode === "register";
   const [role, setRole] = useState<"candidate" | "company">("candidate");
   const [resetRequested, setResetRequested] = useState(false);
@@ -185,6 +194,14 @@ export function AuthPage({ mode, go }: { mode: "login" | "register"; go: (page: 
                   placeholder="Saisissez à nouveau le mot de passe"
                 />
               </label>
+            )}
+            {notice && !authError && (
+              <p
+                role="status"
+                className="rounded-xl bg-slate-100 px-3 py-2.5 text-xs leading-5 text-slate-600"
+              >
+                {notice}
+              </p>
             )}
             {demoHint && !authError && (
               <p className="rounded-xl bg-slate-100 px-3 py-2.5 text-xs leading-5 text-slate-600">

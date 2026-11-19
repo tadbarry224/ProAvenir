@@ -6,9 +6,10 @@ valide les entreprises.
 
 > **État du projet** : en développement. Les pages publiques (accueil, liste et détail des offres)
 > lisent les vraies données de PostgreSQL via l'API. L'inscription, la connexion et l'accès aux
-> espaces candidat, entreprise et administration sont réels (sessions sécurisées). Le **contenu**
-> de ces espaces utilise encore des données fictives ; il sera branché progressivement (offres des
-> entreprises, candidatures, administration…).
+> espaces candidat, entreprise et administration sont réels (sessions sécurisées). Les **offres de
+> l'espace entreprise** sont réelles (création, brouillons, publication, clôture, réouverture). Les
+> candidatures et l'administration utilisent encore des données de démonstration, signalées comme
+> telles ; elles seront branchées ensuite.
 
 ## Sommaire
 

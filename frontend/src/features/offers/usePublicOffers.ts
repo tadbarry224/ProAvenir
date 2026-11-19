@@ -1,8 +1,8 @@
 /**
  * Offres publiques et référentiels, chargés depuis l'API NestJS (PostgreSQL).
  *
- * Remplace, pour les pages publiques, la liste fictive de `useOffers`.
- * L'espace entreprise reste sur les données locales jusqu'à l'étape B4.
+ * Pages publiques. L'espace entreprise utilise `useOffers` (offres de l'entreprise
+ * connectée, routes protégées).
  */
 import { useMemo } from "react";
 import { useApiData } from "../../lib/useApiData";
@@ -24,10 +24,18 @@ export function usePublicOffers(filters: PublicOfferFilters | null = {}) {
   return { ...result, jobs, today: result.data?.today };
 }
 
-/** Villes et domaines (options des filtres), chargés ensemble. */
-export function useReferenceLists() {
-  return useApiData(async (signal) => {
-    const [cities, domains] = await Promise.all([fetchCities(signal), fetchDomains(signal)]);
-    return { cities, domains };
-  }, []);
+/**
+ * Villes et domaines (options des filtres et du formulaire), chargés ensemble.
+ * `enabled = false` : on attend (aucune requête), ex. espace entreprise non affiché.
+ */
+export function useReferenceLists(enabled = true) {
+  return useApiData(
+    enabled
+      ? async (signal) => {
+          const [cities, domains] = await Promise.all([fetchCities(signal), fetchDomains(signal)]);
+          return { cities, domains };
+        }
+      : null,
+    [enabled],
+  );
 }

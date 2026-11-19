@@ -16,6 +16,7 @@ import { AuthProvider } from "./features/auth/AuthProvider";
 import { useAuth } from "./features/auth/authContext";
 import { identityOf, ownsDemoData } from "./features/auth/identity";
 import { useOffers } from "./features/offers/useOffers";
+import { useAdminCompanies } from "./features/admin/useAdminCompanies";
 import { usePublicOffers } from "./features/offers/usePublicOffers";
 import { DEMO_CANDIDATE_APPLICATION_ID, initialRecruitApplications } from "./data/mockApplications";
 import { SESSION_EXPIRED_MESSAGE } from "./services/apiClient";
@@ -134,6 +135,14 @@ function ProAvenirApp() {
     onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
   });
 
+  // Entreprises à vérifier (administration) : lues et décidées via l'API (rôle ADMIN).
+  const adminCompanies = useAdminCompanies({
+    session: auth,
+    userId: auth.user?.id ?? null,
+    enabled: page === "admin" && allowed,
+    onSessionExpired: () => setSessionNotice(SESSION_EXPIRED_MESSAGE),
+  });
+
   // Identité affichée : toujours la personne connectée. Les CANDIDATURES fictives
   // ne sont montrées qu'aux comptes de démonstration (vraies données en B5).
   const identity = auth.user ? identityOf(auth.user) : null;
@@ -241,7 +250,10 @@ function ProAvenirApp() {
         />
         <Route
           path={PAGE_PATHS.admin}
-          element={allowed && identity && <AdminDashboard go={go} identity={identity} />}
+          element={
+            allowed &&
+            identity && <AdminDashboard go={go} identity={identity} companies={adminCompanies} />
+          }
         />
         {/* Adresse inconnue : retour à l'accueil. */}
         <Route path="*" element={<Navigate to={PAGE_PATHS.home} replace />} />

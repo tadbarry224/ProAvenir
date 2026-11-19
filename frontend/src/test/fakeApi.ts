@@ -21,6 +21,10 @@ import offersResponse from "./fixtures/api-offers.json";
 import citiesResponse from "./fixtures/api-cities.json";
 import domainsResponse from "./fixtures/api-domains.json";
 import companyOffersResponse from "./fixtures/api-company-offers.json";
+// Entreprises vues par l'administration : construites à partir de backend/prisma/seed-data.ts
+// (jamais capturées depuis la base de développement, qui contient de vrais comptes).
+import adminCompaniesResponse from "./fixtures/api-admin-companies.json";
+import type { AdminCompanyApi } from "../services/adminCompaniesService";
 import type { PublicOffer } from "../services/offersService";
 import type { CompanyOfferApi, CompanyStatus } from "../services/companyOffersService";
 import type { SessionUser } from "../services/authService";
@@ -81,6 +85,8 @@ export type FakeApi = {
   readonly session: SessionUser | null;
   /** Offres « en base » d'une entreprise (identifiant de l'entreprise). */
   companyOffers: (companyId: string) => CompanyOfferApi[];
+  /** Entreprises « en base » vues par l'administration (après les décisions). */
+  adminCompanies: () => AdminCompanyApi[];
   /** Fait échouer la prochaine requête (méthode + début du chemin). */
   failNext: (method: string, path: string, failure: FakeFailure) => void;
   /** Révoque la session et tous les jetons (ex. session expirée côté serveur). */
@@ -204,6 +210,70 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
     ],
   ]);
   let offerCount = 0;
+  /** Entreprises « en base » pour l'administration (départ : seed). */
+  const adminCompanies = structuredClone(adminCompaniesResponse.data) as AdminCompanyApi[];
+
+  /** Routes /admin/companies, avec les mêmes contrôles que le backend. */
+  const adminRoute = (
+    path: string,
+    method: string,
+    body: Record<string, unknown>,
+    authorization: string | undefined,
+  ) => {
+    const user = authorization?.startsWith("Bearer ")
+      ? tokens.get(authorization.slice("Bearer ".length))
+      : undefined;
+    if (!user) return apiError(401, undefined, "Connexion requise.");
+    if (user.role !== "ADMIN") return apiError(403, undefined, "Accès réservé.");
+
+    if (path === "/admin/companies" && method === "GET") {
+      const order = { PENDING: 0, APPROVED: 1, REJECTED: 2 };
+      const data = [...adminCompanies].sort(
+        (a, b) =>
+          order[a.status] - order[b.status] ||
+          b.createdAt.localeCompare(a.createdAt) ||
+          a.id.localeCompare(b.id),
+      );
+      const pending = data.filter((company) => company.status === "PENDING").length;
+      return json({ data, meta: { total: data.length, pending } });
+    }
+    const match = /^\/admin\/companies\/([^/]+)\/status$/.exec(path);
+    if (!match || method !== "PATCH") return apiError(404, undefined, "Not Found");
+    if (!UUID.test(match[1])) {
+      return apiError(400, "INVALID_COMPANY_ID", "Identifiant d’entreprise invalide.");
+    }
+    const company = adminCompanies.find((item) => item.id === match[1]);
+    if (!company) return apiError(404, "COMPANY_NOT_FOUND", "Entreprise introuvable.");
+    const reason = typeof body.reason === "string" ? body.reason.replace(/\s+/g, " ").trim() : "";
+    if (body.status !== "APPROVED" && body.status !== "REJECTED") {
+      return apiError(400, "VALIDATION_FAILED", [
+        "Le statut doit valoir APPROVED (approuver) ou REJECTED (refuser).",
+      ]);
+    }
+    if (body.status === "REJECTED" && (reason.length < 5 || reason.length > 500)) {
+      return apiError(400, "VALIDATION_FAILED", [
+        reason
+          ? "Le motif du refus doit contenir entre 5 et 500 caractères."
+          : "Le motif du refus est obligatoire.",
+      ]);
+    }
+    if (body.status === "APPROVED" && reason) {
+      return apiError(400, "VALIDATION_FAILED", ["Une approbation ne prend pas de motif."]);
+    }
+    if (company.status === body.status) {
+      return apiError(
+        409,
+        "COMPANY_ALREADY_IN_STATUS",
+        body.status === "APPROVED"
+          ? "Cette entreprise est déjà approuvée."
+          : "Cette entreprise est déjà refusée.",
+      );
+    }
+    company.status = body.status;
+    company.rejectionReason = body.status === "REJECTED" ? reason : null;
+    company.reviewedAt = new Date().toISOString();
+    return json(company);
+  };
   const failures: { method: string; path: string; failure: FakeFailure }[] = [];
 
   const openSession = (user: SessionUser, status = 200) => {
@@ -444,6 +514,9 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
       if (path.startsWith("/companies/me/offers")) {
         return companyRoute(path, method, body, headers.Authorization);
       }
+      if (path.startsWith("/admin/companies")) {
+        return adminRoute(path, method, body, headers.Authorization);
+      }
       if (path === "/cities") return json(citiesResponse);
       if (path === "/domains") return json(domainsResponse);
       if (path === "/offers") {
@@ -512,6 +585,7 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
       return session;
     },
     companyOffers: (companyId) => offersByCompany.get(companyId) ?? [],
+    adminCompanies: () => adminCompanies,
     failNext: (method, path, failure) => failures.push({ method, path, failure }),
     revokeSession: () => {
       session = null;

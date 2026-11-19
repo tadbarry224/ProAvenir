@@ -174,6 +174,29 @@ clôturée, expirée ou d'une entreprise non validée donne la **même** répons
   (`FOR UPDATE`). Deux demandes simultanées sur la même offre passent l'une après l'autre : la
   seconde voit le résultat de la première (ex. double clôture : 200 puis 409).
 
+## Administration : vérification des entreprises
+
+| Route | Accès | Réponse |
+| --- | --- | --- |
+| `GET /api/admin/companies` | rôle `ADMIN` | `{ data: [entreprise…], meta: { total, pending } }`, en attente d'abord puis les plus récentes |
+| `PATCH /api/admin/companies/:id/status` | rôle `ADMIN` | `{ status: "APPROVED" }` ou `{ status: "REJECTED", reason }` → 200 + l'entreprise à jour |
+
+- Une entreprise contient : `id`, `name`, `sector`, `city`, `status`, `rejectionReason`,
+  `createdAt`, `reviewedAt`, `offersCount` (`adminCompanySelect` dans
+  `src/admin-companies/admin-company.ts`). Aucune donnée de compte (e-mail, mot de passe…).
+- Sans jeton : **401**. Candidat ou entreprise : **403**.
+- Le motif (5 à 500 caractères, espaces en trop retirés) est **obligatoire** pour un refus et
+  **interdit** pour une approbation (l'ancien motif est alors effacé). Il est destiné à l'entreprise.
+- Décisions possibles : en attente → approuvée ou refusée ; approuvée → refusée (ses offres
+  quittent aussitôt la liste publique) ; refusée → approuvée. On ne revient jamais à « en attente ».
+- Erreurs : **400** `INVALID_COMPANY_ID` (identifiant mal formé), **400** `VALIDATION_FAILED`
+  (statut ou motif), **404** `COMPANY_NOT_FOUND`, **409** `COMPANY_ALREADY_IN_STATUS` (la décision
+  ne change rien : double clic ou écran périmé).
+- La décision verrouille la ligne de l'entreprise (`FOR UPDATE`) : une publication d'offre en cours
+  se termine avant, ou attend la décision.
+- Relancer `npm run db:seed` remet les entreprises de démonstration dans leur état de départ
+  (Horoya Conseil, Kindia Agro Services et Boké Transit en attente).
+
 ## Format des erreurs
 
 Les erreurs métier ont un **code stable** (à utiliser côté frontend) et, si elles portent sur
@@ -253,6 +276,7 @@ backend/
 │   ├── auth/              inscription, connexion, sessions, gardes (JWT, rôles, CSRF), argon2id
 │   ├── reference/         GET /api/cities, GET /api/domains
 │   ├── offers/            GET /api/offers et /api/offers/:id (filtres validés par ListOffersQueryDto)
-│   └── company-offers/    GET /api/companies/me/offers (offres de l'entreprise connectée)
+│   ├── company-offers/    GET /api/companies/me/offers (offres de l'entreprise connectée)
+│   └── admin-companies/   GET|PATCH /api/admin/companies (vérification des entreprises)
 └── test/                  tests de bout en bout
 ```

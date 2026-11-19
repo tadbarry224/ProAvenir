@@ -14,6 +14,9 @@ export function AdminOffers({
   return (
     <div className="content-card overflow-hidden">
       <CardHeading title="Modération des offres" />
+      <p className="px-5 pt-4 text-xs text-slate-400">
+        Démonstration : ces signalements sont fictifs. La modération réelle arrive prochainement.
+      </p>
       <div className="divide-y divide-slate-100">
         {offers.slice(0, compact ? 2 : offers.length).map((o) => (
           <div key={o.title} className="p-5">

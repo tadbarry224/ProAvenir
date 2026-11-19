@@ -1,32 +1,8 @@
 /**
- * Données fictives de l'espace administrateur (état initial).
- * Plus tard, elles viendront de l'API NestJS (module Administration).
+ * Offres signalées, fictives (démonstration) : la modération réelle viendra plus tard.
+ * Les entreprises à vérifier, elles, viennent de l’API (GET /api/admin/companies).
  */
-import type { ModeratedOffer, PendingCompany } from "../types/admin";
-
-export const initialPendingCompanies: PendingCompany[] = [
-  {
-    name: "Horoya Conseil",
-    sector: "Conseil",
-    city: "Conakry",
-    date: "15 déc. 2026",
-    status: "En attente",
-  },
-  {
-    name: "Kindia Agro Services",
-    sector: "Agriculture",
-    city: "Kindia",
-    date: "14 déc. 2026",
-    status: "En attente",
-  },
-  {
-    name: "Boké Transit",
-    sector: "Logistique",
-    city: "Boké",
-    date: "12 déc. 2026",
-    status: "En attente",
-  },
-];
+import type { ModeratedOffer } from "../types/admin";
 
 export const initialModeratedOffers: ModeratedOffer[] = [
   {

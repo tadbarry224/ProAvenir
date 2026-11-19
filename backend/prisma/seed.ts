@@ -62,6 +62,9 @@ async function main() {
       const fields = {
         ...data,
         reviewedAt: reviewedAt ? new Date(reviewedAt) : null,
+        // Relancer le seed remet aussi le motif de refus à zéro (entreprises de
+        // démonstration revenues « en attente » après un essai de refus).
+        rejectionReason: null,
       };
       await tx.company.upsert({
         where: { id },

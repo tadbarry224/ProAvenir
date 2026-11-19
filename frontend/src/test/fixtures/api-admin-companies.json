@@ -1,0 +1,119 @@
+{
+  "data": [
+    {
+      "id": "20000000-0000-4000-8000-000000000007",
+      "name": "Horoya Conseil",
+      "sector": "Conseil",
+      "city": {
+        "id": "conakry",
+        "name": "Conakry"
+      },
+      "status": "PENDING",
+      "rejectionReason": null,
+      "createdAt": "2026-12-15T12:00:00.000Z",
+      "reviewedAt": null,
+      "offersCount": 0
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000008",
+      "name": "Kindia Agro Services",
+      "sector": "Agriculture",
+      "city": {
+        "id": "kindia",
+        "name": "Kindia"
+      },
+      "status": "PENDING",
+      "rejectionReason": null,
+      "createdAt": "2026-12-14T12:00:00.000Z",
+      "reviewedAt": null,
+      "offersCount": 0
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000009",
+      "name": "Boké Transit",
+      "sector": "Logistique",
+      "city": {
+        "id": "boke",
+        "name": "Boké"
+      },
+      "status": "PENDING",
+      "rejectionReason": null,
+      "createdAt": "2026-12-12T12:00:00.000Z",
+      "reviewedAt": null,
+      "offersCount": 0
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "Kamsar Solutions",
+      "sector": "Services professionnels",
+      "city": {
+        "id": "conakry",
+        "name": "Conakry"
+      },
+      "status": "APPROVED",
+      "rejectionReason": null,
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "reviewedAt": "2026-11-01T12:00:00.000Z",
+      "offersCount": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000002",
+      "name": "Nimba Digital",
+      "sector": null,
+      "city": null,
+      "status": "APPROVED",
+      "rejectionReason": null,
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "reviewedAt": "2026-11-01T12:00:00.000Z",
+      "offersCount": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000003",
+      "name": "Conakry Services",
+      "sector": null,
+      "city": null,
+      "status": "APPROVED",
+      "rejectionReason": null,
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "reviewedAt": "2026-11-01T12:00:00.000Z",
+      "offersCount": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000004",
+      "name": "Fouta Conseil",
+      "sector": null,
+      "city": null,
+      "status": "APPROVED",
+      "rejectionReason": null,
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "reviewedAt": "2026-11-01T12:00:00.000Z",
+      "offersCount": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000005",
+      "name": "Sogué Industrie",
+      "sector": null,
+      "city": null,
+      "status": "APPROVED",
+      "rejectionReason": null,
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "reviewedAt": "2026-11-01T12:00:00.000Z",
+      "offersCount": 1
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000006",
+      "name": "Boké Distribution",
+      "sector": null,
+      "city": null,
+      "status": "APPROVED",
+      "rejectionReason": null,
+      "createdAt": "2026-10-15T12:00:00.000Z",
+      "reviewedAt": "2026-11-01T12:00:00.000Z",
+      "offersCount": 1
+    }
+  ],
+  "meta": {
+    "total": 9,
+    "pending": 3
+  }
+}

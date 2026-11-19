@@ -759,13 +759,109 @@ describe("Authentification", () => {
 describe("Administration", () => {
   setupAppTest();
 
-  it("approuver une entreprise met à jour le compteur", async () => {
-    await renderApp({ as: "ADMIN" });
+  const HOROYA = "20000000-0000-4000-8000-000000000007"; // « Horoya Conseil », en attente
+  const reviewCalls = (api: FakeApi) =>
+    api.calls.filter((call) => call.method === "PATCH" && call.path.startsWith("/admin/"));
+  /** Ligne d'une entreprise dans la liste (pour cliquer sur SES boutons). */
+  const companyRow = (name: string) =>
+    within(screen.getByText(name).closest(".p-5") as HTMLElement);
+
+  it("affiche les vraies entreprises en attente ; approuver met à jour le compteur", async () => {
+    const api = installFakeApi({ session: "ADMIN" });
+    await renderApp();
     await goTo("Administration");
     assert.equal(statValue("Entreprises à vérifier"), "3");
-    fireEvent.click(screen.getAllByRole("button", { name: "Approuver" })[0]);
+    screen.getByText("Horoya Conseil");
+    screen.getByText("Conseil · Conakry · 15 déc. 2026");
+
+    fireEvent.click(companyRow("Horoya Conseil").getByRole("button", { name: "Approuver" }));
+    await settle();
     assert.equal(statValue("Entreprises à vérifier"), "2");
-    screen.getByText("Approuvée");
+    // L'API a reçu la décision, avec le jeton de l'administrateur.
+    const [call] = reviewCalls(api);
+    assert.equal(call.path, `/admin/companies/${HOROYA}/status`);
+    assert.deepEqual(call.body, { status: "APPROVED" });
+    assert.match(call.authorization ?? "", /^Bearer /);
+    // Vue générale : seulement les entreprises en attente.
+    assert.equal(screen.queryByText("Horoya Conseil"), null);
+
+    openTab("Entreprises");
+    within(screen.getByText("Horoya Conseil").closest(".p-5") as HTMLElement).getByText(
+      "Approuvée",
+    );
+  });
+
+  it("refuser exige un motif, montré ensuite avec l'entreprise", async () => {
+    const api = installFakeApi({ session: "ADMIN" });
+    await renderApp();
+    await goTo("Administration");
+    openTab("Entreprises");
+    fireEvent.click(companyRow("Horoya Conseil").getByRole("button", { name: "Refuser" }));
+    const confirm = () =>
+      screen.getByRole<HTMLButtonElement>("button", { name: "Confirmer le refus" });
+    assert.equal(confirm().disabled, true);
+    type(screen.getByLabelText("Motif du refus"), "abc");
+    assert.equal(confirm().disabled, true); // 5 caractères minimum
+    type(screen.getByLabelText("Motif du refus"), "Numéro RCCM manquant");
+    assert.equal(confirm().disabled, false);
+
+    fireEvent.click(confirm());
+    await settle();
+    assert.deepEqual(reviewCalls(api)[0].body, {
+      status: "REJECTED",
+      reason: "Numéro RCCM manquant",
+    });
+    screen.getByText("Motif : Numéro RCCM manquant");
+    companyRow("Horoya Conseil").getByText("Refusée");
+    assert.equal(api.adminCompanies().find((c) => c.id === HOROYA)?.status, "REJECTED");
+  });
+
+  it("une entreprise déjà vérifiée ne propose plus de décision", async () => {
+    await renderApp({ as: "ADMIN" });
+    await goTo("Administration");
+    openTab("Entreprises");
+    const kamsar = companyRow("Kamsar Solutions");
+    kamsar.getByText("Approuvée");
+    assert.equal(kamsar.queryByRole("button", { name: "Approuver" }), null);
+    assert.equal(kamsar.queryByRole("button", { name: "Refuser" }), null);
+  });
+
+  it("une décision déjà prise ailleurs affiche l'erreur et relit la liste", async () => {
+    const api = installFakeApi({ session: "ADMIN" });
+    await renderApp();
+    await goTo("Administration");
+    // Un autre administrateur vient d'approuver Horoya Conseil.
+    api.adminCompanies().find((c) => c.id === HOROYA)!.status = "APPROVED";
+    fireEvent.click(companyRow("Horoya Conseil").getByRole("button", { name: "Approuver" }));
+    await settle();
+    // Erreur affichée puis liste relue : Horoya n'est plus « en attente ».
+    assert.equal(statValue("Entreprises à vérifier"), "2");
+    assert.equal(screen.queryByText("Horoya Conseil"), null);
+    openTab("Entreprises");
+    companyRow("Horoya Conseil").getByText("Approuvée");
+  });
+
+  it("affiche l'erreur du serveur sur l'entreprise concernée", async () => {
+    const api = installFakeApi({ session: "ADMIN" });
+    await renderApp();
+    await goTo("Administration");
+    api.failNext("PATCH", "/admin/companies", 500);
+    fireEvent.click(companyRow("Horoya Conseil").getByRole("button", { name: "Approuver" }));
+    await settle();
+    assert.match(companyRow("Horoya Conseil").getByRole("alert").textContent ?? "", /\S/);
+    assert.equal(statValue("Entreprises à vérifier"), "3");
+  });
+
+  it("un échec du chargement propose « Réessayer »", async () => {
+    const api = installFakeApi({ session: "ADMIN" });
+    api.failNext("GET", "/admin/companies", 500);
+    await renderApp();
+    await goTo("Administration");
+    screen.getByRole("heading", { name: "Impossible de charger les entreprises" });
+    assert.equal(statValue("Entreprises à vérifier"), "–");
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    await settle();
+    screen.getByText("Horoya Conseil");
   });
 });
 

@@ -7,9 +7,10 @@ valide les entreprises.
 > **État du projet** : en développement. Les pages publiques (accueil, liste et détail des offres)
 > lisent les vraies données de PostgreSQL via l'API. L'inscription, la connexion et l'accès aux
 > espaces candidat, entreprise et administration sont réels (sessions sécurisées). Les **offres de
-> l'espace entreprise** sont réelles (création, brouillons, publication, clôture, réouverture). Les
-> candidatures et l'administration utilisent encore des données de démonstration, signalées comme
-> telles ; elles seront branchées ensuite.
+> l'espace entreprise** sont réelles (création, brouillons, publication, clôture, réouverture), tout
+> comme la **vérification des entreprises** par l'administration (approbation, refus motivé). Les
+> candidatures et la modération des offres utilisent encore des données de démonstration,
+> signalées comme telles ; elles seront branchées ensuite.
 
 ## Sommaire
 
@@ -85,6 +86,8 @@ La documentation détaillée se trouve dans :
 | `GET /api/companies/me/offers`              | Offres de l'entreprise connectée, tous statuts, avec le nombre réel de candidatures (rôle entreprise) |
 | `POST /api/companies/me/offers`             | Crée une offre : brouillon, ou publication directe si l'entreprise est validée (rôle entreprise)      |
 | `PATCH /api/companies/me/offers/:id/status` | Publier un brouillon, clôturer ou rouvrir une offre de son entreprise (rôle entreprise)               |
+| `GET /api/admin/companies`                  | Toutes les entreprises, en attente d'abord (rôle administrateur)                                      |
+| `PATCH /api/admin/companies/:id/status`     | Approuver ou refuser une entreprise, motif obligatoire pour un refus (rôle administrateur)             |
 
 Une offre n'est publique que si elle est publiée, que sa date limite n'est pas dépassée (le
 jour même reste valable) et que son entreprise est validée.

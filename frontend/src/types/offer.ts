@@ -114,8 +114,6 @@ export type OfferInput = Omit<OfferFormValues, "skills"> & {
 export type Offer = OfferInput & {
   /** Identifiant texte : UUID pour une offre de l'API. */
   id: string;
-  /** Entreprise propriétaire, pour les données fictives seulement (l'API la déduit de la session). */
-  companyId?: number;
   status: OfferStatus;
   createdAt: string; // date ISO complète
   publishedAt: string | null; // date de première publication, null pour un brouillon jamais publié

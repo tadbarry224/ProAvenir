@@ -11,7 +11,6 @@ const company: Company = { id: 4, name: "Fouta Conseil", initials: "FC", logoCol
 
 const offer: Offer = {
   id: "7",
-  companyId: 4,
   status: "PUBLISHED",
   title: "Stagiaire comptable",
   type: "INTERNSHIP",

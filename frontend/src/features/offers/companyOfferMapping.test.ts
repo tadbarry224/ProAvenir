@@ -47,7 +47,6 @@ describe("companyOfferFromApi", () => {
     assert.equal(offer.status, "DRAFT");
     assert.equal(offer.applicationsCount, 0);
     assert.equal(offer.publiclyVisible, false);
-    assert.equal(offer.companyId, undefined);
   });
 
   it("produit le même affichage que les données locales (toJobView inchangé)", () => {

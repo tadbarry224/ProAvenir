@@ -43,7 +43,8 @@ describe("Rendu des pages publiques", () => {
   });
 
   it("fenêtre de candidature", async () => {
-    const { container } = await renderApp();
+    // Seul un compte candidat peut ouvrir la fenêtre de candidature.
+    const { container } = await renderApp({ as: "CANDIDATE" });
     await goTo("Offres");
     fireEvent.click(screen.getByText("Développeur·se web junior"));
     fireEvent.click(screen.getByRole("button", { name: "Postuler maintenant" }));

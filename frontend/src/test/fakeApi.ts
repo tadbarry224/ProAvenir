@@ -43,7 +43,7 @@ export const FAKE_USERS: Record<UserRole, SessionUser> = {
     email: "recrutement.kamsar-solutions@proavenir.test",
     fullName: "Recruteur Kamsar",
     role: "COMPANY",
-    company: { id: "c-kamsar", name: "Kamsar Solutions", status: "APPROVED" },
+    company: { id: "c-kamsar", name: "Kamsar Solutions", status: "APPROVED", logoColor: "blue" },
   },
   ADMIN: {
     id: "u-admin",
@@ -469,7 +469,12 @@ export function installFakeApi(options: FakeApiOptions = {}): FakeApi {
           role: body.role,
           company:
             body.role === "COMPANY"
-              ? { id: `c-${users.size + 1}`, name: body.companyName, status: "PENDING" }
+              ? {
+                  id: `c-${users.size + 1}`,
+                  name: body.companyName,
+                  status: "PENDING",
+                  logoColor: "blue",
+                }
               : null,
         };
         users.set(email, { user, password: body.password });

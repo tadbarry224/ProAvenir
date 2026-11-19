@@ -10,6 +10,8 @@
 
 /** Candidature vue par l'entreprise. */
 export type RecruitApplication = {
+  /** Identifiant stable : deux candidats peuvent porter le même nom. */
+  id: string;
   name: string;
   role: string;
   date: string;

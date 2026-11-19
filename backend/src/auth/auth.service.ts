@@ -25,7 +25,13 @@ export interface SessionUser {
   email: string;
   fullName: string;
   role: UserRole;
-  company: { id: string; name: string; status: CompanyStatus } | null;
+  company: {
+    id: string;
+    name: string;
+    status: CompanyStatus;
+    /** Couleur du logo par défaut (classes .logo-blue, .logo-green…). */
+    logoColor: string;
+  } | null;
 }
 
 /** Réponse des routes register / login / refresh. */
@@ -60,7 +66,11 @@ const sessionUserSelect = {
   fullName: true,
   role: true,
   companyMembers: {
-    select: { company: { select: { id: true, name: true, status: true } } },
+    select: {
+      company: {
+        select: { id: true, name: true, status: true, logoColor: true },
+      },
+    },
     take: 1,
   },
 } satisfies Prisma.UserSelect;

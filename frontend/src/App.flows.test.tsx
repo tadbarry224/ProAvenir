@@ -148,16 +148,54 @@ describe("Liste publique des offres", () => {
     assert.equal(await offersCount(), "6 offres disponibles");
   });
 
-  it("permet de consulter une offre et d'y postuler", async () => {
-    await renderApp();
+  /** Ouvre le détail de l'offre « Développeur·se web junior » depuis la liste publique. */
+  async function openJobDetails() {
     await goTo("Offres");
     fireEvent.click(screen.getByText("Développeur·se web junior"));
     screen.getByRole("heading", { level: 1, name: "Développeur·se web junior" });
+  }
+
+  it("permet à un candidat de consulter une offre et d'y postuler", async () => {
+    await renderApp({ as: "CANDIDATE" });
+    await openJobDetails();
 
     fireEvent.click(screen.getByRole("button", { name: "Postuler maintenant" }));
+    // Aucun CV ni nom d'une autre personne : le CV est celui du profil connecté.
+    screen.getByText("CV de votre profil");
+    assert.equal(screen.queryByText(/CV_Mariama_Diallo/), null);
+    screen.getByText(/la candidature n'est pas encore enregistrée/);
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "Envoyer ma candidature" }));
     screen.getByText("Candidature envoyée");
+  });
+
+  it("affiche le vrai contenu de l'offre, sans badge ni texte fictif", async () => {
+    await renderApp();
+    await openJobDetails();
+    assert.equal(screen.queryByText("Donnée fictive"), null);
+    assert.equal(screen.queryByRole("heading", { name: "Vos missions" }), null);
+    assert.equal(screen.queryByRole("heading", { name: "Profil recherché" }), null);
+  });
+
+  it("demande à un visiteur de se connecter pour postuler", async () => {
+    await renderApp();
+    await openJobDetails();
+    assert.equal(screen.queryByRole("button", { name: "Postuler maintenant" }), null);
+    assert.equal(screen.queryByRole("button", { name: "Voir mon profil" }), null);
+
+    fireEvent.click(screen.getByRole("button", { name: "Se connecter pour postuler" }));
+    await settle();
+    screen.getByLabelText("Adresse e-mail");
+  });
+
+  it("ne propose pas de postuler à une entreprise ni à un administrateur", async () => {
+    for (const role of ["COMPANY", "ADMIN"] as const) {
+      const { unmount } = await renderApp({ as: role });
+      await openJobDetails();
+      screen.getByText("Les candidatures sont réservées aux comptes candidats.");
+      assert.equal(screen.queryByRole("button", { name: "Postuler maintenant" }), null);
+      unmount();
+    }
   });
 });
 

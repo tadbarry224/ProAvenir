@@ -17,7 +17,13 @@ export type SessionUser = {
   email: string;
   fullName: string;
   role: UserRole;
-  company: { id: string; name: string; status: "PENDING" | "APPROVED" | "REJECTED" } | null;
+  company: {
+    id: string;
+    name: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    /** Couleur du logo par défaut (classes .logo-blue, .logo-green…). */
+    logoColor: string;
+  } | null;
 };
 
 export type AuthResponse = {

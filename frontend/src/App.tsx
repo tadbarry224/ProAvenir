@@ -8,7 +8,7 @@ import { useAuth } from "./features/auth/authContext";
 import { identityOf, ownsDemoData } from "./features/auth/identity";
 import { useOffers } from "./features/offers/useOffers";
 import { usePublicOffers } from "./features/offers/usePublicOffers";
-import { initialRecruitApplications } from "./data/mockApplications";
+import { DEMO_CANDIDATE_APPLICATION_ID, initialRecruitApplications } from "./data/mockApplications";
 import { SESSION_EXPIRED_MESSAGE } from "./services/apiClient";
 import { Header } from "./components/layout/Header";
 import { Home } from "./pages/Home";
@@ -44,9 +44,9 @@ function ProAvenirApp() {
   const [recruitApplications, setRecruitApplications] = useState<RecruitApplication[]>(
     initialRecruitApplications,
   );
-  const updateApplicationStatus = (name: string, status: string) =>
+  const updateApplicationStatus = (id: string, status: string) =>
     setRecruitApplications((items) =>
-      items.map((item) => (item.name === name ? { ...item, status } : item)),
+      items.map((item) => (item.id === id ? { ...item, status } : item)),
     );
   const go = (target: Page) => {
     if (target === "logout") {
@@ -129,6 +129,8 @@ function ProAvenirApp() {
           <JobDetails
             job={selectedJob}
             go={go}
+            // Seul un compte candidat peut postuler (null = visiteur non connecté).
+            viewerRole={auth.status === "authenticated" ? (auth.user?.role ?? null) : null}
             applied={appliedIds.includes(selectedJob.id)}
             onApply={() =>
               setAppliedIds((ids) =>
@@ -148,14 +150,19 @@ function ProAvenirApp() {
           identity={identity}
           showDemoData={showDemoData}
           applicationStatus={
-            recruitApplications.find((item) => item.name === "Mariama Diallo")?.status ?? "Envoyée"
+            recruitApplications.find((item) => item.id === DEMO_CANDIDATE_APPLICATION_ID)?.status ??
+            "Envoyée"
           }
         />
       )}
       {page === "company" && allowed && identity && (
         <CompanyDashboard
           go={go}
-          company={{ name: identity.name, initials: identity.initials, logoColor: "blue" }}
+          company={{
+            name: identity.name,
+            initials: identity.initials,
+            logoColor: auth.user?.company?.logoColor ?? "blue",
+          }}
           identity={identity}
           companyOffers={companyOffers}
           applications={showDemoData ? recruitApplications : []}

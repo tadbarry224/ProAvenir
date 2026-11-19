@@ -142,7 +142,11 @@ describe('Authentification (e2e)', () => {
       }).expect(201);
       expect(res.body.user).toMatchObject({
         role: 'COMPANY',
-        company: { name: '[e2e-auth] Société test', status: 'PENDING' },
+        company: {
+          name: '[e2e-auth] Société test',
+          status: 'PENDING',
+          logoColor: 'blue',
+        },
       });
       const member = await prisma.companyMember.findFirstOrThrow({
         where: { user: { email: email('entreprise') } },

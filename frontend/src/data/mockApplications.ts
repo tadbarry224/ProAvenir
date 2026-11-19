@@ -26,9 +26,13 @@ export const candidateApplications: CandidateApplication[] = [
   },
 ];
 
+/** Candidature de la candidate de démonstration : son statut s'affiche aussi dans son espace. */
+export const DEMO_CANDIDATE_APPLICATION_ID = "demo-recruit-1";
+
 /** Candidatures reçues par l'entreprise de démonstration (état initial). */
 export const initialRecruitApplications: RecruitApplication[] = [
   {
+    id: DEMO_CANDIDATE_APPLICATION_ID,
     name: "Mariama Diallo",
     role: "Assistant·e marketing digital",
     date: "12 déc. 2026",
@@ -36,6 +40,7 @@ export const initialRecruitApplications: RecruitApplication[] = [
     initials: "MD",
   },
   {
+    id: "demo-recruit-2",
     name: "Abdoulaye Bah",
     role: "Assistant·e marketing digital",
     date: "11 déc. 2026",
@@ -43,6 +48,7 @@ export const initialRecruitApplications: RecruitApplication[] = [
     initials: "AB",
   },
   {
+    id: "demo-recruit-3",
     name: "Fatoumata Camara",
     role: "Commercial·e terrain",
     date: "09 déc. 2026",

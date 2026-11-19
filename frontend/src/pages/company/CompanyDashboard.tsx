@@ -65,7 +65,7 @@ export function CompanyDashboard({
   companyOffers: CompanyOffersState;
   /** Candidatures de démonstration (fictives jusqu'à B5). */
   applications: RecruitApplication[];
-  updateStatus: (name: string, status: string) => void;
+  updateStatus: (id: string, status: string) => void;
 }) {
   const { offers, today, status: offersStatus, companyStatus, pending } = companyOffers;
   const [active, setActive] = useState("Aperçu");

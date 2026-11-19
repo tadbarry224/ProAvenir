@@ -6,7 +6,7 @@ export function RecruitTable({
   updateStatus,
 }: {
   items: RecruitApplication[];
-  updateStatus: (name: string, status: string) => void;
+  updateStatus: (id: string, status: string) => void;
 }) {
   const nextStatuses = (status: string) => {
     if (status === "Envoyée") return ["Envoyée", "En examen"];
@@ -27,7 +27,7 @@ export function RecruitTable({
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={item.name}>
+            <tr key={item.id}>
               <td>
                 <span className="flex items-center gap-3">
                   <span className="grid size-8 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">
@@ -42,7 +42,7 @@ export function RecruitTable({
                 <select
                   className={`status border-0 outline-none ${statusStyle[item.status]}`}
                   value={item.status}
-                  onChange={(e) => updateStatus(item.name, e.target.value)}
+                  onChange={(e) => updateStatus(item.id, e.target.value)}
                 >
                   {nextStatuses(item.status).map((x) => (
                     <option key={x}>{x}</option>

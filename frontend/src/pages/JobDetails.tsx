@@ -12,16 +12,24 @@ import {
 } from "lucide-react";
 import type { Job } from "../types/offer";
 import type { Page } from "../types/navigation";
+import type { UserRole } from "../types/auth";
 import { JobLogo } from "../components/jobs/JobLogo";
+
+/** La candidature n'est pas encore enregistrée par l'API (étape B5). */
+const APPLY_DEMO_NOTICE =
+  "Démonstration : la candidature n'est pas encore enregistrée. L'envoi réel arrive prochainement.";
 
 export function JobDetails({
   job,
   go,
+  viewerRole,
   applied,
   onApply,
 }: {
   job: Job;
   go: (page: Page) => void;
+  /** Rôle de la personne connectée, null pour un visiteur. Seul un candidat peut postuler. */
+  viewerRole: UserRole | null;
   applied: boolean;
   onApply: () => void;
 }) {
@@ -49,7 +57,6 @@ export function JobDetails({
                     {job.type}
                   </span>
                   <span className="pill bg-slate-100 text-slate-600">{job.domain}</span>
-                  <span className="pill bg-amber-50 text-amber-700">Donnée fictive</span>
                 </div>
                 <h1 className="font-display mt-3 text-2xl font-extrabold tracking-[-0.035em] text-[#0c2340] sm:text-3xl">
                   {job.title}
@@ -74,31 +81,20 @@ export function JobDetails({
           </section>
           <section className="content-card p-6 sm:p-8">
             <h2 className="content-title">À propos de l’offre</h2>
-            <p className="mt-4 leading-7 text-slate-600">{job.description}</p>
-            <h2 className="content-title mt-8">Vos missions</h2>
-            <ul className="detail-list">
-              <li>
-                Contribuer activement aux projets de l’équipe et proposer des solutions adaptées.
-              </li>
-              <li>
-                Assurer un suivi régulier des activités et partager des comptes rendus clairs.
-              </li>
-              <li>Collaborer avec les différents interlocuteurs internes et externes.</li>
-            </ul>
-            <h2 className="content-title mt-8">Compétences recherchées</h2>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {job.skills.map((skill) => (
-                <span className="skill-tag" key={skill}>
-                  {skill}
-                </span>
-              ))}
-            </div>
-            <h2 className="content-title mt-8">Profil recherché</h2>
-            <p className="mt-4 leading-7 text-slate-600">
-              Vous êtes motivé·e, rigoureux·se et souhaitez progresser dans un environnement
-              professionnel stimulant. Une première expérience ou un projet académique pertinent
-              sera apprécié.
-            </p>
+            {/* Texte saisi par l'entreprise : les retours à la ligne sont conservés. */}
+            <p className="mt-4 whitespace-pre-line leading-7 text-slate-600">{job.description}</p>
+            {job.skills.length > 0 && (
+              <>
+                <h2 className="content-title mt-8">Compétences recherchées</h2>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {job.skills.map((skill) => (
+                    <span className="skill-tag" key={skill}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
         </div>
         <aside className="content-card sticky top-24 p-6">
@@ -108,25 +104,40 @@ export function JobDetails({
             {job.deadline}
           </p>
           <div className="my-5 h-px bg-slate-100" />
-          {applied ? (
-            <div className="rounded-xl bg-emerald-50 p-4 text-center">
-              <CheckCircle2 className="mx-auto text-emerald-600" />
-              <p className="mt-2 text-sm font-bold text-emerald-800">Candidature envoyée</p>
-              <p className="mt-1 text-xs text-emerald-700">
-                Vous pouvez suivre son état depuis votre espace.
-              </p>
-            </div>
-          ) : (
-            <button onClick={() => setModal(true)} className="btn-primary w-full">
-              Postuler maintenant <ArrowRight size={17} />
+          {viewerRole === null && (
+            // Visiteur : il doit d'abord se connecter avec un compte candidat.
+            <button onClick={() => go("login")} className="btn-primary w-full">
+              Se connecter pour postuler <ArrowRight size={17} />
             </button>
           )}
-          <button onClick={() => go("candidate")} className="btn-secondary mt-3 w-full">
-            Voir mon profil
-          </button>
-          <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-            Votre CV sera visible uniquement par le recruteur concerné.
-          </p>
+          {viewerRole === "CANDIDATE" &&
+            (applied ? (
+              <div className="rounded-xl bg-emerald-50 p-4 text-center">
+                <CheckCircle2 className="mx-auto text-emerald-600" />
+                <p className="mt-2 text-sm font-bold text-emerald-800">Candidature envoyée</p>
+                <p className="mt-1 text-xs text-emerald-700">
+                  Vous pouvez suivre son état depuis votre espace.
+                </p>
+              </div>
+            ) : (
+              <button onClick={() => setModal(true)} className="btn-primary w-full">
+                Postuler maintenant <ArrowRight size={17} />
+              </button>
+            ))}
+          {viewerRole === "CANDIDATE" && (
+            <button onClick={() => go("candidate")} className="btn-secondary mt-3 w-full">
+              Voir mon profil
+            </button>
+          )}
+          {viewerRole !== null && viewerRole !== "CANDIDATE" ? (
+            <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
+              Les candidatures sont réservées aux comptes candidats.
+            </p>
+          ) : (
+            <p className="mt-4 text-center text-xs leading-5 text-slate-400">
+              Votre CV sera visible uniquement par le recruteur concerné.
+            </p>
+          )}
         </aside>
       </div>
       {modal && (
@@ -145,11 +156,12 @@ export function JobDetails({
               <div className="flex items-center gap-3">
                 <FileCheck2 className="text-emerald-600" />
                 <div>
-                  <p className="text-sm font-bold text-emerald-900">CV_Mariama_Diallo.pdf</p>
+                  <p className="text-sm font-bold text-emerald-900">CV de votre profil</p>
                   <p className="text-xs text-emerald-700">Votre CV actuel sera transmis</p>
                 </div>
               </div>
             </div>
+            <p className="mt-3 text-xs text-slate-400">{APPLY_DEMO_NOTICE}</p>
             <label className="form-label mt-5">
               Message au recruteur <span>(facultatif)</span>
               <textarea rows={4} placeholder="Présentez brièvement votre motivation..." />

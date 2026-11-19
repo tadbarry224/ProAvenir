@@ -37,7 +37,7 @@ describe("identité des espaces", () => {
       ...candidate,
       role: "COMPANY",
       fullName: "Fatou Camara",
-      company: { id: "c1", name: "Soumba Services", status: "PENDING" },
+      company: { id: "c1", name: "Soumba Services", status: "PENDING", logoColor: "green" },
     });
     assert.equal(identity.name, "Soumba Services");
     assert.equal(identity.initials, "SS");
